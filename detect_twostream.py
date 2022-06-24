@@ -106,25 +106,6 @@ def detect(opt):
             gn = torch.tensor(im0.shape)[[1, 0, 1, 0]]  # normalization gain whwh
             # print(gn)
 
-            # # ----------------------------------------------------------------------------
-            # #  画GT，替换det
-            # #
-            # # ---------------------------------------------------------------------------
-            # annoPath = "/home/fqy/proj/paper/test_result/gt/"
-            # annoName  = (path_.split("/")[-1]).split(".")[0] + ".txt"
-            # annoPath += annoName
-            # # print(annoPath)
-            # gt = np.loadtxt(annoPath)
-            # gt = gt.reshape((-1, 5))
-            # ones = np.ones((gt.shape[0], 1))
-            # gt = np.hstack((gt, ones))
-            # gt[:, [0,1,2,3,4,5]] = gt[:, [1,2,3,4,5,0]]
-            # gt = torch.from_numpy(gt).to(device)
-            # # print(gt[:, :4])
-            # gt[:, :4] = xywh2xyxy(gt[:, :4]) * 640
-            #
-            # det = gt
-
             # print(det)
             if len(det):
                 # Rescale boxes from img_size to im0 size
