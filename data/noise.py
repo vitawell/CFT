@@ -80,7 +80,9 @@ def convert(input_dir, output_dir):
 if __name__ == '__main__':
     input_dir = "/data1/multispectral-object-detection/data/seacutest/rgb"    # 输入数据文件夹
     output_dir = "/data1/multispectral-object-detection/data/seacutest/rgb" # 输出数据文件夹
-    os.makedirs(output_dir,exist_ok=True) 
+    # 输入输出为同一文件夹时会替换原图片
+    
+    os.makedirs(output_dir,exist_ok=True)  # 若输出数据文件夹不存在则新建
     convert(input_dir, output_dir)
 
 
