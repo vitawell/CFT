@@ -23,16 +23,7 @@ To fully exploit the different modalities, we present a simple yet effective cro
 Unlike prior CNNs-based works, guided by the Transformer scheme, our network learns long-range dependencies and integrates global contextual information in the feature extraction stage. 
 More importantly, by leveraging the self attention of the Transformer, the network can naturally carry out simultaneous intra-modality and inter-modality fusion, and robustly capture the latent interactions between RGB and Thermal domains, thereby significantly improving the performance of multispectral object detection. 
 Extensive experiments and ablation studies on multiple datasets demonstrate that our approach is effective and achieves state-of-the-art detection performance. 
-### Demo
-**Night Scene**
-<div align="left">
-<img src="https://github.com/DocF/multispectral-object-detection/blob/main/video/demo1.gif" width="600">
-</div>
 
-**Day Scene**
-<div align="left">
-<img src="https://github.com/DocF/multispectral-object-detection/blob/main/video/demo.gif" width="600">
-</div>
 
  
 ### Overview
