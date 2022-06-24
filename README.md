@@ -1,3 +1,6 @@
+增加噪声：noise.py
+
+
 # Multispectral-Object-Detection
 
 [![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/cross-modality-fusion-transformer-for/multispectral-object-detection-on-flir)](https://paperswithcode.com/sota/multispectral-object-detection-on-flir?p=cross-modality-fusion-transformer-for)
