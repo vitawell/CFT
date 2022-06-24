@@ -1,4 +1,4 @@
-增加噪声：noise.py
+增加噪声：data/noise.py
 
 
 # Multispectral-Object-Detection
