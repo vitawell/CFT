@@ -218,7 +218,7 @@ class Concat(nn.Module):
         # print(x.shape)
         return torch.cat(x, self.d)
 
-
+###
 class Add(nn.Module):
     #  Add two tensors
     def __init__(self, arg):
@@ -545,7 +545,7 @@ class myTransformerBlock(nn.Module):
 
         return x
 
-
+###
 class GPT(nn.Module):
     """  the full GPT language model, with a context size of block_size """
 
