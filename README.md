@@ -2,7 +2,7 @@
 
 去除没有的图片、生成train和val的txt文件：data/dataclean.py
 
-修改GLP生成的txtest测试中的深度图到与原图尺寸一致：data/imageex.py
+用resize拉伸GLP生成的txtest测试中的深度图到与原图尺寸一致：data/imageex.py
 
 
 # Multispectral-Object-Detection
