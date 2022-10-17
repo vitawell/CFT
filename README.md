@@ -4,6 +4,7 @@
 
 用resize拉伸GLP生成的txtest测试中的深度图到与原图尺寸一致：data/imageex.py
 
+基于ULAP批量生成深度图：data/ULAP.py
 
 # Multispectral-Object-Detection
 
