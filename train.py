@@ -380,7 +380,7 @@ def train(hyp, opt, device, tb_writer=None):
                                                  compute_loss=compute_loss,
                                                  is_coco=is_coco)
 
-            # Write
+            # Write #把每次迭代结果写入result.txt  # P, R, mAP@.5, mAP@.5-.95, val_loss(box, obj, cls)
             with open(results_file, 'a') as f:
                 f.write(s + '%10.4g' * 8 % results + '\n')  # append metrics, val_loss
             if len(opt.name) and opt.bucket:
