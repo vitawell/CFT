@@ -152,6 +152,9 @@ class ComputeLoss:
 
         if self.autobalance:
             self.balance = [x / self.balance[self.ssi] for x in self.balance]
+            
+        # 根据超参中的损失权重参数 对各个损失进行平衡  防止总损失被某个损失所左右
+        # train.py文件中设置hyp文件，如/data/hyp.scratch.yaml
         lbox *= self.hyp['box']
         lobj *= self.hyp['obj']
         lcls *= self.hyp['cls']
