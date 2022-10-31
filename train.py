@@ -43,6 +43,13 @@ import global_var
 
 
 def train(hyp, opt, device, tb_writer=None):
+    """
+    :params hyp: data/hyps/hyp.scratch.yaml   hyp dictionary
+    :params opt: main中opt参数
+    :params device: 当前设备
+    """
+    # ----------------------------------------------- 初始化参数和配置信息 ----------------------------------------------
+    
     logger.info(colorstr('hyperparameters: ') + ', '.join(f'{k}={v}' for k, v in hyp.items()))
     save_dir, epochs, batch_size, total_batch_size, weights, rank = \
         Path(opt.save_dir), opt.epochs, opt.batch_size, opt.total_batch_size, opt.weights, opt.global_rank
@@ -78,11 +85,13 @@ def train(hyp, opt, device, tb_writer=None):
         data_dict = wandb_logger.data_dict
         if wandb_logger.wandb:
             weights, epochs, hyp = opt.weights, opt.epochs, opt.hyp  # WandbLogger might update weights, epochs if resuming
-
-    nc = 1 if opt.single_cls else int(data_dict['nc'])  # number of classes
+    
+    # nc: number of classes  数据集有多少种类别
+    nc = 1 if opt.single_cls else int(data_dict['nc']) 
     names = ['item'] if opt.single_cls and len(data_dict['names']) != 1 else data_dict['names']  # class names
     assert len(names) == nc, '%g names found for nc=%g dataset in %s' % (len(names), nc, opt.data)  # check
-
+    
+    # ============================================== 1、model ================================================
     # Model
     pretrained = weights.endswith('.pt')
     if pretrained:
@@ -110,6 +119,7 @@ def train(hyp, opt, device, tb_writer=None):
             print('freezing %s' % k)
             v.requires_grad = False
 
+    # ============================================== 2、优化器 ===============================================
     # Optimizer
     nbs = 64  # nominal batch size
     accumulate = max(round(nbs / total_batch_size), 1)  # accumulate loss before optimizing
@@ -134,7 +144,8 @@ def train(hyp, opt, device, tb_writer=None):
     optimizer.add_param_group({'params': pg2})  # add pg2 (biases)
     logger.info('Optimizer groups: %g .bias, %g conv.weight, %g other' % (len(pg2), len(pg1), len(pg0)))
     del pg0, pg1, pg2
-
+    
+    # ============================================== 3、学习率 =================================================
     # Scheduler https://arxiv.org/pdf/1812.01187.pdf
     # https://pytorch.org/docs/stable/_modules/torch/optim/lr_scheduler.html#OneCycleLR
     if opt.linear_lr:
@@ -188,7 +199,8 @@ def train(hyp, opt, device, tb_writer=None):
     if opt.sync_bn and cuda and rank != -1:
         model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model).to(device)
         logger.info('Using SyncBatchNorm()')
-
+    
+    # ============================================== 4、数据加载 ==============================================
     # Trainloader
     dataloader, dataset = create_dataloader(train_path, imgsz, batch_size, gs, opt,
                                             hyp=hyp, augment=True, cache=opt.cache_images, rect=opt.rect, rank=rank,
@@ -226,7 +238,9 @@ def train(hyp, opt, device, tb_writer=None):
         model = DDP(model, device_ids=[opt.local_rank], output_device=opt.local_rank,
                     # nn.MultiheadAttention incompatibility with DDP https://github.com/pytorch/pytorch/issues/26698
                     find_unused_parameters=any(isinstance(layer, nn.MultiheadAttention) for layer in model.modules()))
-
+    
+    # ============================================== 5、训练 ===============================================
+    # 设置/初始化一些训练要用的参数
     # Model parameters
     hyp['box'] *= 3. / nl  # scale to layers
     hyp['cls'] *= nc / 80. * 3. / nl  # scale to classes and layers
@@ -359,7 +373,7 @@ def train(hyp, opt, device, tb_writer=None):
         print(" TEST SAMPLER ")
         print(list(testloader.sampler))
 
-
+        # validation
         # DDP process 0 or single-GPU
         if rank in [-1, 0]:
             # mAP
@@ -367,6 +381,13 @@ def train(hyp, opt, device, tb_writer=None):
             final_epoch = epoch + 1 == epochs
             if not opt.notest or final_epoch:  # Calculate mAP
                 wandb_logger.current_epoch = epoch + 1
+                # 测试使用的是ema（指数移动平均 对模型的参数做平均）的模型
+                # results: [1] Precision 所有类别的平均precision(最大f1时)
+                #          [1] Recall 所有类别的平均recall
+                #          [1] map@0.5 所有类别的平均mAP@0.5
+                #          [1] map@0.5:0.95 所有类别的平均mAP@0.5:0.95
+                #          [1] box_loss 验证集回归损失, obj_loss 验证集置信度损失, cls_loss 验证集分类损失
+                # maps: [80] 所有类别的mAP@0.5:0.95
                 results, maps, times = test.test(data_dict,
                                                  batch_size=batch_size * 2,
                                                  imgsz=imgsz_test,
