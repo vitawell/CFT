@@ -6,6 +6,8 @@
 
 基于ULAP批量生成深度图：data/ULAP.py
 
+修改了utis/plots.py，更正了画图val box错误。
+
 # Multispectral-Object-Detection
 
 [![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/cross-modality-fusion-transformer-for/multispectral-object-detection-on-flir)](https://paperswithcode.com/sota/multispectral-object-detection-on-flir?p=cross-modality-fusion-transformer-for)
