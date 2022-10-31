@@ -492,6 +492,7 @@ def train(hyp, opt, device, tb_writer=None):
     return results
 
 
+# 训练
 def train_rgb_ir(hyp, opt, device, tb_writer=None):
     logger.info(colorstr('hyperparameters: ') + ', '.join(f'{k}={v}' for k, v in hyp.items()))
     save_dir, epochs, batch_size, total_batch_size, weights, rank = \
