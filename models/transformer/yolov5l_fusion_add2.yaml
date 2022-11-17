@@ -1,5 +1,5 @@
 # parameters
-# nc: 3  # number of classes
+nc: 3  # number of classes #不能注释，但nc数取决于data中yaml
 depth_multiple: 1.00  # model depth multiple
 width_multiple: 1.00  # layer channel multiple
 
@@ -39,12 +39,11 @@ backbone:
     ######### Add Block #############
    [[2,12], 1, Add, [1]],    # 20 two stream fuse
    [-1, 1, Conv, [256, 3, 2]],  #21
-   [-1, 9, C3, [256]]           #22
+   [-1, 9, C3, [256]],           #22
    [-1, 1, Conv, [512, 3, 2]],  #24
    [-1, 9, C3, [512]],          #25
    
    [[9,19], 1, Add, [1]],    # 26 two stream fuse
-   
   ]
 
 
