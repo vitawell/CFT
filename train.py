@@ -41,7 +41,7 @@ logger = logging.getLogger(__name__)
 from utils.datasets import RandomSampler
 import global_var
 
-
+# 不是调用train()函数训练
 def train(hyp, opt, device, tb_writer=None):
     """
     :params hyp: data/hyps/hyp.scratch.yaml   hyp dictionary
@@ -492,7 +492,7 @@ def train(hyp, opt, device, tb_writer=None):
     return results
 
 
-# 训练
+## 调用train_rgb_ir()函数训练
 def train_rgb_ir(hyp, opt, device, tb_writer=None):
     logger.info(colorstr('hyperparameters: ') + ', '.join(f'{k}={v}' for k, v in hyp.items()))
     save_dir, epochs, batch_size, total_batch_size, weights, rank = \
@@ -1031,6 +1031,7 @@ if __name__ == '__main__':
             logger.info(f"{prefix}Start with 'tensorboard --logdir {opt.project}', view at http://localhost:6006/")
             tb_writer = SummaryWriter(opt.save_dir)  # Tensorboard
 
+            # 调用train_rgb_ir()函数训练
             train_rgb_ir(hyp, opt, device, tb_writer)
 
 
