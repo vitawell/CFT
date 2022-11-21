@@ -212,7 +212,8 @@ class Model(nn.Module):
         logger.info('')
 
     def forward(self, x, x2, augment=False, profile=False):
-        if augment:
+        # 是否在测试时也使用数据增强  Test Time Augmentation(TTA)
+        if augment: 
             img_size = x.shape[-2:]  # height, width
             s = [1, 0.83, 0.67]  # scales
             f = [None, 3, None]  # flips (2-ud, 3-lr)
@@ -228,6 +229,7 @@ class Model(nn.Module):
                     yi[..., 0] = img_size[1] - yi[..., 0]  # de-flip lr
                 y.append(yi)
             return torch.cat(y, 1), None  # augmented inference, train
+        # 默认执行 正常前向推理
         else:
             return self.forward_once(x, x2, profile)  # single-scale inference, train
 
@@ -237,18 +239,32 @@ class Model(nn.Module):
 
         :param x:          RGB Inputs
         :param x2:         IR  Inputs
-        :param profile:
+        :params profile: True 可以做一些性能评估
+        :params feature_vis: True 可以做一些特征可视化
+        :return train: 一个tensor list 存放三个元素   [bs, anchor_num, grid_w, grid_h, xywh+c+20classes]
+                       分别是 [1, 3, 80, 80, 25] [1, 3, 40, 40, 25] [1, 3, 20, 20, 25]
+                inference: 0 [1, 19200+4800+1200, 25] = [bs, anchor_num*grid_w*grid_h, xywh+c+20classes]
+                           1 一个tensor list 存放三个元素 [bs, anchor_num, grid_w, grid_h, xywh+c+20classes]
+                             [1, 3, 80, 80, 25] [1, 3, 40, 40, 25] [1, 3, 20, 20, 25]
         :return:
         """
+        # y: 存放着self.save=True的每一层的输出，因为后面的层结构concat等操作要用到
+        # dt: 在profile中做性能评估时使用
         y, dt = [], []  # outputs
         i = 0
         for m in self.model:
             # print("Moudle", i)
-            if m.f != -1:  # if not from previous layer
-                if m.f != -4:
+            # 前向推理每一层结构   m.i=index   m.f=from   m.type=类名   m.np=number of params
+            # if not from previous layer   m.f=当前层的输入来自哪一层的输出  s的m.f都是-1
+            if m.f != -1:  #不是上一层
+                if m.f != -4:  #不是第二模态
                     # print(m)
+                    # 这里需要做concat操作和1个Detect操作
+                    # concat操作如m.f=[-1, 6] x就有两个元素,一个是上一层的输出,另一个是index=6的层的输出 再送到x=m(x)做concat操作
+                    # Detect操作m.f=[17, 20, 23] x有三个元素,分别存放第17层第20层第23层的输出 再送到x=m(x)做Detect的forward
                     x = y[m.f] if isinstance(m.f, int) else [x if j == -1 else y[j] for j in m.f]  # from earlier layers
 
+            # 打印日志信息  FLOPs time等
             if profile:
                 o = thop.profile(m, inputs=(x,), verbose=False)[0] / 1E9 * 2 if thop else 0  # FLOPS
                 t = time_synchronized()
@@ -259,14 +275,17 @@ class Model(nn.Module):
                     logger.info(f"{'time (ms)':>10s} {'GFLOPS':>10s} {'params':>10s}  {'module'}")
                 logger.info(f'{dt[-1]:10.2f} {o:10.2f} {m.np:10.0f}  {m.type}')
 
-            if m.f == -4:
+            if m.f == -4: # 如果输入为-4，表示输入为第二个模态
                 x = m(x2)
             else:
-                x = m(x)  # run
+                x = m(x)  # run正向推理  执行每一层的forward函数(除Concat和Detect操作)
+                
+            # 存放着self.save的每一层的输出，因为后面需要用来作concat等操作要用到  不在self.save层的输出就为None
             y.append(x if m.i in self.save else None)  # save output
             # print(len(y))
             i+=1
-
+                
+        # 打印日志信息  前向推理时间
         if profile:
             logger.info('%.1fms total' % sum(dt))
         return x
