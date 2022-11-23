@@ -220,6 +220,7 @@ def create_dataloader(path, imgsz, batch_size, stride, opt, hyp=None, augment=Fa
 #     return dataloader_modal1, dataset_modal1, dataloader_modal2, dataset_modal2
 
 
+# 加载双模态数据 ==============================
 def create_dataloader_rgb_ir(path1, path2,  imgsz, batch_size, stride, opt, hyp=None, augment=False, cache=False, pad=0.0, rect=False,
                       rank=-1, world_size=1, workers=8, image_weights=False, quad=False, prefix='', sampler=None):
     # Make sure only the first process in DDP process the dataset first, and the following others can use the cache
