@@ -48,7 +48,7 @@ def train(hyp, opt, device, tb_writer=None):
     :params opt: main中opt参数
     :params device: 当前设备
     """
-    # ----------------------------------------------- 初始化参数和配置信息 ----------------------------------------------
+    # 初始化参数和配置信息 ----------------------------------------------
     
     logger.info(colorstr('hyperparameters: ') + ', '.join(f'{k}={v}' for k, v in hyp.items()))
     save_dir, epochs, batch_size, total_batch_size, weights, rank = \
@@ -91,8 +91,7 @@ def train(hyp, opt, device, tb_writer=None):
     names = ['item'] if opt.single_cls and len(data_dict['names']) != 1 else data_dict['names']  # class names
     assert len(names) == nc, '%g names found for nc=%g dataset in %s' % (len(names), nc, opt.data)  # check
     
-    # ============================================== 1、model ================================================
-    # Model
+    # 1、model ===============================================
     pretrained = weights.endswith('.pt')
     if pretrained:
         with torch_distributed_zero_first(rank):
@@ -119,7 +118,7 @@ def train(hyp, opt, device, tb_writer=None):
             print('freezing %s' % k)
             v.requires_grad = False
 
-    # ============================================== 2、优化器 ===============================================
+    # 2、优化器 ===============================================
     # Optimizer
     nbs = 64  # nominal batch size
     accumulate = max(round(nbs / total_batch_size), 1)  # accumulate loss before optimizing
@@ -145,7 +144,7 @@ def train(hyp, opt, device, tb_writer=None):
     logger.info('Optimizer groups: %g .bias, %g conv.weight, %g other' % (len(pg2), len(pg1), len(pg0)))
     del pg0, pg1, pg2
     
-    # ============================================== 3、学习率 =================================================
+    # 3、学习率 =================================================
     # Scheduler https://arxiv.org/pdf/1812.01187.pdf
     # https://pytorch.org/docs/stable/_modules/torch/optim/lr_scheduler.html#OneCycleLR
     if opt.linear_lr:
@@ -200,7 +199,7 @@ def train(hyp, opt, device, tb_writer=None):
         model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model).to(device)
         logger.info('Using SyncBatchNorm()')
     
-    # ============================================== 4、数据加载 ==============================================
+    # 4、数据加载 ==============================================
     # Trainloader
     dataloader, dataset = create_dataloader(train_path, imgsz, batch_size, gs, opt,
                                             hyp=hyp, augment=True, cache=opt.cache_images, rect=opt.rect, rank=rank,
@@ -239,7 +238,7 @@ def train(hyp, opt, device, tb_writer=None):
                     # nn.MultiheadAttention incompatibility with DDP https://github.com/pytorch/pytorch/issues/26698
                     find_unused_parameters=any(isinstance(layer, nn.MultiheadAttention) for layer in model.modules()))
     
-    # ============================================== 5、训练 ===============================================
+    # 5、训练 ===============================================
     # 设置/初始化一些训练要用的参数
     # Model parameters
     hyp['box'] *= 3. / nl  # scale to layers
