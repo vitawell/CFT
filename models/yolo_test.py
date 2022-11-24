@@ -675,10 +675,15 @@ if __name__ == '__main__':
 
     output = model(input_rgb, input_ir)
     print("YOLO")
+    # 输出detect的输出 三个tensor
+ 
     print(output[0].shape)
     print(output[1].shape)
     print(output[2].shape)
-    # print(output)
+    # detect3.yaml的输出size
+    # torch.Size([8, 3, 80, 80, 8])
+    # torch.Size([8, 3, 40, 40, 8])
+    # torch.Size([8, 3, 20, 20, 8])
 
     # # Create model
     # model =TwoStreamModel(opt.cfg).to(device)
