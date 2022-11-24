@@ -217,6 +217,19 @@ class Concat(nn.Module):
     def forward(self, x):
         # print(x.shape)
         return torch.cat(x, self.d)
+    
+    
+class ConcatD(nn.Module): #拼接多个detect的输出？
+    def __init__(self, dimension=1):
+        super(Concat, self).__init__()
+        self.d = dimension
+
+    def forward(self, x):
+        # print(x.shape)
+        nl = len(x)
+        for i in range(nl):  # 对三个feature map分别进行处理
+            x = torch.stack(x).mean(0)  # 求两个模型结果的均值 mean ensemble
+        return x
 
 ###
 class Add(nn.Module):
