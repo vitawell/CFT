@@ -221,7 +221,7 @@ class Concat(nn.Module):
     
 class ConcatD(nn.Module): #拼接多个detect的输出？
     def __init__(self, dimension=1):
-        super(Concat, self).__init__()
+        super(ConcatD, self).__init__()
         self.d = dimension
 
     def forward(self, x):
