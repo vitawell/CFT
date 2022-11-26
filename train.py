@@ -878,6 +878,9 @@ def train_rgb_ir(hyp, opt, device, tb_writer=None):
             fi = fitness(np.array(results).reshape(1, -1))  # weighted combination of [P, R, mAP@.5, mAP@.5-.95]
             if fi > best_fitness:
                 best_fitness = fi
+                ## 输出best map和epoch
+                print(fi)
+                print(epoch)
             wandb_logger.end_epoch(best_result=best_fitness == fi)
 
             # Save model
