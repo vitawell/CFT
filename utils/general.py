@@ -461,7 +461,7 @@ def my_soft_nms(bboxes, scores, iou_thresh=0.5, sigma=0.5, score_threshold=0.25)
     x2 = bboxes[:, 2]
     y2 = bboxes[:, 3]
     areas = (x2 - x1 + 1) * (y2 - y1 + 1)
-        order = scores.sort(0, descending=True)
+    order = scores.sort(0, descending=True)
     keep = []
 
     while order.numel() > 0:
