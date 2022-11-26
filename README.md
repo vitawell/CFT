@@ -8,6 +8,8 @@
 
 修改了utis/plots.py，更正了画图val box错误。
 
+utils/metrics.py 
+
 使用soft-nms，修改了utis/general.py，增加模块def my_soft_nms，修改模块non_max_suppression中使用nms为使用my_soft_nms。
 
 
