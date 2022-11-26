@@ -875,6 +875,7 @@ def train_rgb_ir(hyp, opt, device, tb_writer=None):
                     wandb_logger.log({tag: x})  # W&B
 
             # Update best mAP
+            # reshape为1行，列数自动计算
             fi = fitness(np.array(results).reshape(1, -1))  # weighted combination of [P, R, mAP@.5, mAP@.5-.95]
             if fi > best_fitness:
                 best_fitness = fi
