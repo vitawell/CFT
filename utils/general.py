@@ -451,6 +451,49 @@ def wh_iou(wh1, wh2):
     inter = torch.min(wh1, wh2).prod(2)  # [N,M]
     return inter / (wh1.prod(2) + wh2.prod(2) - inter)  # iou = inter / (area1 + area2 - inter)
 
+### 定义soft-nms
+def my_soft_nms(bboxes, scores, iou_thresh=0.5, sigma=0.5, score_threshold=0.25):
+
+    bboxes = bboxes.contiguous()
+
+    x1 = bboxes[:, 0]
+    y1 = bboxes[:, 1]
+    x2 = bboxes[:, 2]
+    y2 = bboxes[:, 3]
+    areas = (x2 - x1 + 1) * (y2 - y1 + 1)
+        order = scores.sort(0, descending=True)
+    keep = []
+
+    while order.numel() > 0:
+        if order.numel() == 1: 
+            i = order.item()
+            break
+        else:
+            i = order[0].item()
+            keep.append(i)
+        xx1 = x1[order[1:]].clamp(min=x1[i])
+        yy1 = y1[order[1:]].clamp(min=y1[i])
+        xx2 = x2[order[1:]].clamp(max=x2[i])
+        yy2 = y2[order[1:]].clamp(max=y2[i])
+        inter = (xx2 - xx1).clamp(min=0) * (yy2 - yy1).clamp(min=0)
+
+        idx = (iou > iou_thresh).nonzero().squeeze()  
+        if idx.numel() > 0:
+            iou = iou[idx]
+            newScores = torch.exp(-torch.pow(iou, 2) / sigma)  
+            scores[order[idx + 1]] *= newScores  
+
+        newOrder = (scores[order[1:]] > score_threshold).nonzero().squeeze()
+        if newOrder.numel() == 0:
+            break
+        else:
+            maxScoreIndex = torch.argmax(newScores)
+
+            if maxScoreIndex != 0:
+               newOrder[[0, maxScoreIndex],] = newOrder[[maxScoreIndex, 0],]
+            order = order[newOrder + 1]
+
+    return torch.LongTensor(keep)
 
 def non_max_suppression(prediction, conf_thres=0.25, iou_thres=0.45, classes=None, agnostic=False, multi_label=False,
                         labels=()):
@@ -524,7 +567,10 @@ def non_max_suppression(prediction, conf_thres=0.25, iou_thres=0.45, classes=Non
         # Batched NMS
         c = x[:, 5:6] * (0 if agnostic else max_wh)  # classes
         boxes, scores = x[:, :4] + c, x[:, 4]  # boxes (offset by class), scores
-        i = torchvision.ops.nms(boxes, scores, iou_thres)  # NMS
+        #i = torchvision.ops.nms(boxes, scores, iou_thres)  # NMS
+        # 使用soft-nms
+        i = my_soft_nms(boxes, scores, iou_thres)
+        
         if i.shape[0] > max_det:  # limit detections
             i = i[:max_det]
         if merge and (1 < n < 3E3):  # Merge NMS (boxes merged using weighted mean)
