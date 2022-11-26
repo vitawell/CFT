@@ -461,7 +461,11 @@ def my_soft_nms(bboxes, scores, iou_thresh=0.5, sigma=0.5, score_threshold=0.25)
     x2 = bboxes[:, 2]
     y2 = bboxes[:, 3]
     areas = (x2 - x1 + 1) * (y2 - y1 + 1)
-    order = scores.sort(0, descending=True)
+    sscores,order = scores.sort(0, descending=True)
+    ##
+    #print(sscores)
+    #print(order)
+    
     keep = []
 
     while order.numel() > 0:
@@ -476,7 +480,8 @@ def my_soft_nms(bboxes, scores, iou_thresh=0.5, sigma=0.5, score_threshold=0.25)
         xx2 = x2[order[1:]].clamp(max=x2[i])
         yy2 = y2[order[1:]].clamp(max=y2[i])
         inter = (xx2 - xx1).clamp(min=0) * (yy2 - yy1).clamp(min=0)
-
+        
+        iou = box_iou(bboxes[i], bboxes)
         idx = (iou > iou_thresh).nonzero().squeeze()  
         if idx.numel() > 0:
             iou = iou[idx]
