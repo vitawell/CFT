@@ -8,6 +8,8 @@
 
 修改了utis/plots.py，更正了画图val box错误。
 
+使用soft-nms，修改了utis/general.py，增加模块def my_soft_nms，修改模块non_max_suppression中使用nms为使用my_soft_nms。
+
 
 ## CFT
 CFT修改了模型yolo.py，改为models/yolo_test.py，加载数据时若输入为-4则表示输入为第二个模态。
