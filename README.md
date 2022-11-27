@@ -8,9 +8,9 @@
 
 修改了utils/plots.py，更正了画图val box错误。
 
-train.py中计算best map的epoch，修改utils/metrics.py中的fitness模块权重。
+输出train.py中计算best map的epoch，修改utils/metrics.py中的fitness模块权重。
 
-使用soft-nms，修改了utils/general.py，增加模块def my_soft_nms，修改模块non_max_suppression中使用nms为使用my_soft_nms。
+使用soft-nms，修改了utils/general.py，增加模块my_soft_nms，修改模块non_max_suppression中使用nms为使用my_soft_nms。
 
 
 ## CFT
