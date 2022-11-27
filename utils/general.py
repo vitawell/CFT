@@ -460,12 +460,15 @@ def my_soft_nms(bboxes, scores, iou_thresh=0.5, sigma=0.5, score_threshold=0.25)
     y1 = bboxes[:, 1]
     x2 = bboxes[:, 2]
     y2 = bboxes[:, 3]
+    # 计算每个box的面积
     areas = (x2 - x1 + 1) * (y2 - y1 + 1)
+    #对得分进行降序排列, oeder为降序排列后的索引
     sscores,order = scores.sort(0, descending=True)
     ##
     #print(sscores)
     #print(order)
     
+    # NMS后,保存留下来的边框
     keep = []
 
     while order.numel() > 0:
@@ -473,31 +476,41 @@ def my_soft_nms(bboxes, scores, iou_thresh=0.5, sigma=0.5, score_threshold=0.25)
             i = order.item()
             break
         else:
-            i = order[0].item()
+            i = order[0].item() # 保留首个得分最大的边框
             keep.append(i)
+        # 巧妙使用tersor.clamp()函数求取每一个边框,与当前框的最大值和最小值
         xx1 = x1[order[1:]].clamp(min=x1[i])
         yy1 = y1[order[1:]].clamp(min=y1[i])
         xx2 = x2[order[1:]].clamp(max=x2[i])
         yy2 = y2[order[1:]].clamp(max=y2[i])
+        # 求取每一个边框与当前边框的交集面积
         inter = (xx2 - xx1).clamp(min=0) * (yy2 - yy1).clamp(min=0)
+        # 计算每一个框与当前框的IoU #共order.numel()-1个
+        iou = inter / (areas[i]+areas[order[1:]]-inter)
+
+        #areas = (xx2 - xx1 + 1) * (yy2 - yy1 + 1) - inter
+        #iou = inter / areas
         
-        iou = box_iou(bboxes[i], bboxes)
+        #获取order中IoU大于阈值的其他边框的索引
         idx = (iou > iou_thresh).nonzero().squeeze()  
         if idx.numel() > 0:
             iou = iou[idx]
-            newScores = torch.exp(-torch.pow(iou, 2) / sigma)  
-            scores[order[idx + 1]] *= newScores  
+            newScores = torch.exp(-torch.pow(iou, 2) / sigma)  #计算边框的得分衰减
+            scores[order[idx + 1]] *= newScores  #更新那些IoU大于阈值的边框的得分
 
         newOrder = (scores[order[1:]] > score_threshold).nonzero().squeeze()
+        #print(newOrder.numel())
         if newOrder.numel() == 0:
             break
         else:
+            newScores = scores[order[newOrder+1]] 
             maxScoreIndex = torch.argmax(newScores)
 
             if maxScoreIndex != 0:
                newOrder[[0, maxScoreIndex],] = newOrder[[maxScoreIndex, 0],]
             order = order[newOrder + 1]
-
+            
+    #返回保留下来的所有边框的索引值,类型torch.LongTensor
     return torch.LongTensor(keep)
 
 def non_max_suppression(prediction, conf_thres=0.25, iou_thres=0.45, classes=None, agnostic=False, multi_label=False,
