@@ -856,7 +856,8 @@ def train_rgb_ir(hyp, opt, device, tb_writer=None):
                                                  wandb_logger=wandb_logger,
                                                  compute_loss=compute_loss,
                                                  is_coco=is_coco)
-
+            
+            # print(results) # 输出print #[P, R, mAP@.5, mAP@.75, mAP@.5-.95, ...]
             # Write
             with open(results_file, 'a') as f:
                 f.write(s + '%10.4g' * 8 % results + '\n')  # append metrics, val_loss
