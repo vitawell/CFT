@@ -101,6 +101,8 @@ def test(data,
     p, r, f1, mp, mr, map50, map75, map, t0, t1 = 0., 0., 0., 0., 0., 0., 0., 0, 0., 0.
     loss = torch.zeros(3, device=device)
     jdict, stats, ap, ap_class, wandb_images = [], [], [], [], []
+    
+    ## 开始验证 =================================================
     for batch_i, (img, targets, paths, shapes) in enumerate(tqdm(dataloader, desc=s)):
     # for batch_i, (img, targets, paths, shapes) in enumerate(tqdm(testloader, desc=s)):
         img = img.to(device, non_blocking=True)
@@ -115,28 +117,48 @@ def test(data,
         with torch.no_grad():
             # Run model
             t = time_synchronized()
+            
+            ## 前向推理
+            # out:       推理结果 1个 [bs, anchor_num*grid_w*grid_h, xywh+c+20classes] = [1, 19200+4800+1200, 25]
+            # train_out: 训练结果 3个 [bs, anchor_num, grid_w, grid_h, xywh+c+20classes]
+            #                    如: [1, 3, 80, 80, 25] [1, 3, 40, 40, 25] [1, 3, 20, 20, 25]
             out, train_out = model(img_rgb, img_ir, augment=augment)  # inference and training outputs
+            ##print(out.size)
+            ##print(train_out.size)
+            
             t0 += time_synchronized() - t
 
-            # Compute loss
+            # 计算验证损失
+            # compute_loss不为空 说明正在执行train.py  根据传入的compute_loss计算损失值
             if compute_loss:
                 loss += compute_loss([x.float() for x in train_out], targets)[1][:3]  # box, obj, cls
 
             # Run NMS
+            # 将真实框target的xywh(因为target是在labelimg中做了归一化的)映射到img(test)尺寸
             targets[:, 2:] *= torch.Tensor([width, height, width, height]).to(device)  # to pixels
+            # 是在NMS之前将数据集标签targets添加到模型预测中
+            # 这允许在数据集中自动标记(for autolabelling)其他对象(在pred中混入gt) 并且mAP反映了新的混合标签
+            # targets: [num_target, img_index+class_index+xywh] = [31, 6]
+            # lb: {list: bs} 第一张图片的target[17, 5] 第二张[1, 5] 第三张[7, 5] 第四张[6, 5]
             lb = [targets[targets[:, 0] == i, 1:] for i in range(nb)] if save_hybrid else []  # for autolabelling
             t = time_synchronized()
             out = non_max_suppression(out, conf_thres, iou_thres, labels=lb, multi_label=True, agnostic=single_cls)
-            t1 += time_synchronized() - t
+            t1 += time_synchronized() - t  # 累计NMS时间
 
-        # Statistics per image
+        # 6.5、统计每张图片的真实框、预测框信息  Statistics per image
+        # 为每张图片做统计，写入预测信息到txt文件，生成json文件字典，统计tp等
+        # out: list{bs}  [300, 6] [42, 6] [300, 6] [300, 6]  [pred_obj_num, x1y1x2y2+object_conf+cls]
         for si, pred in enumerate(out):
-            labels = targets[targets[:, 0] == si, 1:]
-            nl = len(labels)
+            # 获取第si张图片的gt标签信息 包括class, x, y, w, h    target[:, 0]为标签属于哪张图片的编号
+            labels = targets[targets[:, 0] == si, 1:]   # [:, class+xywh]
+            nl = len(labels)    # 第si张图片的gt个数
+            # 获取标签类别
             tcls = labels[:, 0].tolist() if nl else []  # target class
-            path = Path(paths[si])
+            path = Path(paths[si])  # 第si张图片的地址
+            # 统计测试图片数量 +1
             seen += 1
-
+            
+            # 如果预测为空，则添加空的信息到stats里
             if len(pred) == 0:
                 if nl:
                     stats.append((torch.zeros(0, niou, dtype=torch.bool), torch.Tensor(), torch.Tensor(), tcls))
@@ -146,18 +168,22 @@ def test(data,
             if single_cls:
                 pred[:, 5] = 0
             predn = pred.clone()
+            # 将预测坐标映射到原图img中
             scale_coords(img[si].shape[1:], predn[:, :4], shapes[si][0], shapes[si][1])  # native-space pred
 
-            # Append to text file
+            # Append to text file  保存预测信息到txt文件
             if save_txt:
+                # gn = [w, h, w, h] 对应图片的宽高  用于后面归一化
                 gn = torch.tensor(shapes[si][0])[[1, 0, 1, 0]]  # normalization gain whwh
                 for *xyxy, conf, cls in predn.tolist():
+                    # xyxy -> xywh 并作归一化处理
                     xywh = (xyxy2xywh(torch.tensor(xyxy).view(1, 4)) / gn).view(-1).tolist()  # normalized xywh
                     line = (cls, *xywh, conf) if save_conf else (cls, *xywh)  # label format
+                    # 保存预测类别和坐标值到对应图片id.txt文件中
                     with open(save_dir / 'labels' / (path.stem + '.txt'), 'a') as f:
                         f.write(('%g ' * len(line)).rstrip() % line + '\n')
 
-            # W&B logging - Media Panel Plots
+            # W&B logging - Media Panel Plots  保存预测信息到wandb_logger(类似tensorboard)中
             if len(wandb_images) < log_imgs and wandb_logger.current_epoch > 0:  # Check for test operation
                 if wandb_logger.current_epoch % wandb_logger.bbox_interval == 0:
                     box_data = [{"position": {"minX": xyxy[0], "minY": xyxy[1], "maxX": xyxy[2], "maxY": xyxy[3]},
@@ -169,7 +195,7 @@ def test(data,
                     wandb_images.append(wandb_logger.wandb.Image(img[si], boxes=boxes, caption=path.name))
             wandb_logger.log_training_progress(predn, path, names) if wandb_logger and wandb_logger.wandb_run else None
 
-            # Append to pycocotools JSON dictionary
+            # Append to pycocotools JSON dictionary  将预测信息保存到coco格式的json字典(后面存入json文件)
             if save_json:
                 # [{"image_id": 42, "category_id": 18, "bbox": [258.15, 41.29, 348.26, 243.78], "score": 0.236}, ...
                 image_id = int(path.stem) if path.stem.isnumeric() else path.stem
@@ -181,57 +207,94 @@ def test(data,
                                   'bbox': [round(x, 3) for x in b],
                                   'score': round(p[4], 5)})
 
-            # Assign all predictions as incorrect
+            # 计算混淆矩阵、计算correct、生成stats
+            # Assign all predictions as incorrect  初始化预测评定 niou为iou阈值的个数
             correct = torch.zeros(pred.shape[0], niou, dtype=torch.bool, device=device)
             if nl:
-                detected = []  # target indices
-                tcls_tensor = labels[:, 0]
+                detected = []  # target indices  用于存放已检测到的目标
+                tcls_tensor = labels[:, 0]  # 当前图片的所有gt的类别
 
                 # target boxes
-                tbox = xywh2xyxy(labels[:, 1:5])
+                tbox = xywh2xyxy(labels[:, 1:5])    #获得xyxy格式的框
+                # 将预测框映射到原图img
                 scale_coords(img[si].shape[1:], tbox, shapes[si][0], shapes[si][1])  # native-space labels
                 if plots:
+                    # 计算混淆矩阵 confusion_matrix
                     confusion_matrix.process_batch(predn, torch.cat((labels[:, 0:1], tbox), 1))
 
-                # Per target class
+                # Per target class  对图片中每个类别单独处理
                 for cls in torch.unique(tcls_tensor):
-                    ti = (cls == tcls_tensor).nonzero(as_tuple=False).view(-1)  # prediction indices
-                    pi = (cls == pred[:, 5]).nonzero(as_tuple=False).view(-1)  # target indices
+                    ti = (cls == tcls_tensor).nonzero(as_tuple=False).view(-1)  # prediction indices 预测框中该类别的索引
+                    pi = (cls == pred[:, 5]).nonzero(as_tuple=False).view(-1)  # target indices  
 
                     # Search for detections
                     if pi.shape[0]:
                         # Prediction to target ious
+                        # predn[pi, :4]: 属于该类的预测框[144, 4]  tbox[ti]: 属于该类的gt框[13, 4]
+                        # box_iou: [144, 4] + [13, 4] => [144, 13]  计算属于该类的预测框与属于该类的gt框的iou
+                        # .max(1): [144] 选出每个预测框与所有gt box中最大的iou值, i为最大iou值时对应的gt索引
                         ious, i = box_iou(predn[pi, :4], tbox[ti]).max(1)  # best ious, indices
 
                         # Append detections
                         detected_set = set()
-                        for j in (ious > iouv[0]).nonzero(as_tuple=False):
-                            d = ti[i[j]]  # detected target
+                        for j in (ious > iouv[0]).nonzero(as_tuple=False):  # j: ious中>0.5的索引 只有iou>=0.5才是TP
+                            d = ti[i[j]]  # detected target  获得检测到的目标
                             if d.item() not in detected_set:
                                 detected_set.add(d.item())
-                                detected.append(d)
+                                detected.append(d)  # 将当前检测到的gt框d添加到detected()
+                                # iouv为以0.05为步长  0.5-0.95的序列
+                                # 从所有TP中获取不同iou阈值下的TP true positive  并在correct中记录下哪个预测框是哪个iou阈值下的TP
+                                # correct: [pred_num, 10] = [300, 10]  记录着哪个预测框在哪个iou阈值下是TP
                                 correct[pi[j]] = ious[j] > iouv  # iou_thres is 1xn
+                                # 如果检测到的目标值等于gt框的个数 就结束
                                 if len(detected) == nl:  # all targets already located in image
                                     break
 
-            # Append statistics (correct, conf, pcls, tcls)
+            # 将每张图片的预测结果统计到stats中 Append statistics
+            # stats: correct, conf, pcls, tcls   bs个 correct, conf, pcls, tcls
+            # correct: [pred_num, 10] bool 当前图片每一个预测框在每一个iou条件下是否是TP
+            # pred[:, 4]: [pred_num, 1] 当前图片每一个预测框的conf
+            # pred[:, 5]: [pred_num, 1] 当前图片每一个预测框的类别
+            # tcls: [gt_num, 1] 当前图片所有gt框的class
             stats.append((correct.cpu(), pred[:, 4].cpu(), pred[:, 5].cpu(), tcls))
 
         # Plot images
+        # 画出前三个batch的图片的ground truth和预测框predictions(两个图)一起保存
         if plots and batch_i < 3:
-            f = save_dir / f'test_batch{batch_i}_labels.jpg'  # labels
+            f = save_dir / f'test_batch{batch_i}_labels.jpg'  # labels  # ground truth
+            # Thread  表示在单独的控制线程中运行的活动 创建一个单线程(子线程)来执行函数 由这个子进程全权负责这个函数
+            # target: 执行的函数  args: 传入的函数参数  daemon: 当主线程结束后, 由他创建的子线程Thread也已经自动结束了
+            # .start(): 启动线程  当thread一启动的时候, 就会运行我们自己定义的这个函数plot_images
+            # 如果在plot_images里面打开断点调试, 可以发现子线程暂停, 但是主线程还是在正常的训练(还是正常的跑)
             Thread(target=plot_images, args=(img, targets, paths, f, names), daemon=True).start()
             f = save_dir / f'test_batch{batch_i}_pred.jpg'  # predictions
             Thread(target=plot_images, args=(img, output_to_target(out), paths, f, names), daemon=True).start()
 
-    # Compute statistics
+    # 统计stats中所有图片的统计结果 将stats列表的信息拼接到一起
+    # stats(concat后): list{4} correct, conf, pcls, tcls  统计出的整个数据集的GT
+    # correct [img_sum, 10] 整个数据集所有图片中所有预测框在每一个iou条件下是否是TP  [1905, 10]
+    # conf [img_sum] 整个数据集所有图片中所有预测框的conf  [1905]
+    # pcls [img_sum] 整个数据集所有图片中所有预测框的类别   [1905]
+    # tcls [gt_sum] 整个数据集所有图片所有gt框的class     [929]
     stats = [np.concatenate(x, 0) for x in zip(*stats)]  # to numpy
+    # stats[0].any(): stats[0]是否全部为False, 是则返回 False, 如果有一个为 True, 则返回 True
     if len(stats) and stats[0].any():
+        # 根据上面的统计预测结果计算p, r, ap, f1, ap_class（ap_per_class函数是计算每个类的mAP等指标的）等指标
+        # p: [nc] 最大平均f1时每个类别的precision
+        # r: [nc] 最大平均f1时每个类别的recall
+        # ap: [71, 10] 数据集每个类别在10个iou阈值下的mAP
+        # f1 [nc] 最大平均f1时每个类别的f1
+        # ap_class: [nc] 返回数据集中所有的类别index
         p, r, ap, f1, ap_class = ap_per_class(*stats, plot=plots, save_dir=save_dir, names=names)
         # print("mAP75", ap[:, 5].mean(-1))
+        # ap50: [nc] 所有类别的mAP@0.5   ap: [nc] 所有类别的mAP@0.5:0.95
         ap50, ap75, ap = ap[:, 0], ap[:, 5], ap.mean(1)  # AP@0.5, AP@0.5:0.95
+        # mp: [1] 所有类别的平均precision(最大f1时)
+        # mr: [1] 所有类别的平均recall(最大f1时)
+        # map50: [1] 所有类别的平均mAP@0.5
+        # map: [1] 所有类别的平均mAP@0.5:0.95
         mp, mr, map50, map75, map = p.mean(), r.mean(), ap50.mean(), ap75.mean(), ap.mean()
-        nt = np.bincount(stats[3].astype(np.int64), minlength=nc)  # number of targets per class
+        nt = np.bincount(stats[3].astype(np.int64), minlength=nc)  # number of targets per class 统计整个数据集的gt框中数据集各个类别的个数
     else:
         nt = torch.zeros(1)
 
@@ -284,14 +347,24 @@ def test(data,
         except Exception as e:
             print(f'pycocotools unable to run: {e}')
 
-    # Return results
+    # Return results  返回测试指标结果
     model.float()  # for training
     if not training:
         s = f"\n{len(list(save_dir.glob('labels/*.txt')))} labels saved to {save_dir / 'labels'}" if save_txt else ''
         print(f"Results saved to {save_dir}{s}")
-    maps = np.zeros(nc) + map
+    maps = np.zeros(nc) + map  # [nc] nc个平均mAP@0.5:0.95
     for i, c in enumerate(ap_class):
-        maps[c] = ap[i]
+        maps[c] = ap[i] # 所有类别的mAP@0.5:0.95
+    # (mp, mr, map50, map, *(loss.cpu() / len(dataloader)).tolist()): {tuple:7}
+    #      0: mp [1] 所有类别的平均precision(最大f1时)
+    #      1: mr [1] 所有类别的平均recall(最大f1时)
+    #      2: map50 [1] 所有类别的平均mAP@0.5
+    #      3: map [1] 所有类别的平均mAP@0.5:0.95
+    #      4: val_box_loss [1] 验证集回归损失
+    #      5: val_obj_loss [1] 验证集置信度损失
+    #      6: val_cls_loss [1] 验证集分类损失
+    # maps: [80] 所有类别的mAP@0.5:0.95
+    # t: {tuple: 3} 0: 打印前向传播耗费的总时间   1: nms耗费总时间   2: 总时间
     return (mp, mr, map50, map75, map, *(loss.cpu() / len(dataloader)).tolist()), maps, t
 
 
