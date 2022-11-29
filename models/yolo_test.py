@@ -185,7 +185,10 @@ class Model(nn.Module):
         if anchors:
             logger.info(f'Overriding model.yaml anchors with anchors={anchors}')
             self.yaml['anchors'] = round(anchors)  # override yaml value
-        self.model, self.save = parse_model(deepcopy(self.yaml), ch=[ch])  # model, savelist
+        #self.model, self.save = parse_model(deepcopy(self.yaml), ch=[ch])  # model, savelist
+        self.model, self.save, self.saveout = parse_model(deepcopy(self.yaml), ch=[ch])  # model, savelist
+        ##save.out是detect层的索引
+        
         # print(self.model)
         self.names = [str(i) for i in range(self.yaml['nc'])]  # default names
         # logger.info([x.shape for x in self.forward(torch.zeros(1, ch, 64, 64))])
@@ -584,7 +587,8 @@ def parse_model(d, ch):  # model_dict, input_channels(3)
         #     ch = []
         ch.append(c2)
     # print(layers)
-    return nn.Sequential(*layers), sorted(save)
+    # return nn.Sequential(*layers), sorted(save)
+    return nn.Sequential(*layers), sorted(save), sorted(saveout)
 
 
 def parse_model_rgb_ir(d, ch):  # model_dict, input_channels(3)
