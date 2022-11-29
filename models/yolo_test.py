@@ -502,6 +502,9 @@ def parse_model(d, ch):  # model_dict, input_channels(3)
     no = na * (nc + 5)  # number of outputs = anchors * (classes + 5)
 
     layers, save, c2 = [], [], ch[-1]  # layers, savelist, ch out
+    ##保存需要输出的out （detect层）
+    saveout = [] 
+    
     # print("ch", ch)
     for i, (f, n, m, args) in enumerate(d['backbone'] + d['head']):  # from, number, module, args
         m = eval(m) if isinstance(m, str) else m  # eval strings
@@ -551,6 +554,11 @@ def parse_model(d, ch):  # model_dict, input_channels(3)
             c2 = ch[f[0]]
             args = [c2]
         elif m is Detect:
+            ##
+            print(i)
+            saveout.extend(i)
+            print(saveout)
+            
             args.append([ch[x] for x in f])
             if isinstance(args[1], int):  # number of anchors
                 args[1] = [list(range(args[1] * 2))] * len(f)
