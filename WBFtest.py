@@ -123,6 +123,8 @@ def test(data,
             # train_out: 训练结果 3个 [bs, anchor_num, grid_w, grid_h, xywh+c+20classes]
             #                    如: [1, 3, 80, 80, 25] [1, 3, 40, 40, 25] [1, 3, 20, 20, 25]
             out, train_out = model(img_rgb, img_ir, augment=augment)  # inference and training outputs
+            ##为什么model会输出两个结果??若增加dout，不修改此处后面compute_loss中x in train_out仍会出错
+            
             ##print(out.size)
             ##print(train_out.size)
             
