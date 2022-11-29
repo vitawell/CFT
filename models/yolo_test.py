@@ -554,10 +554,10 @@ def parse_model(d, ch):  # model_dict, input_channels(3)
             c2 = ch[f[0]]
             args = [c2]
         elif m is Detect:
-            ##
+            ##保存detect层的索引
             print(i)
-            saveout.extend(i)
-            print(saveout)
+            #saveout.extend([i])  ##扩展list中的元素到saveout中
+            #print(saveout)
             
             args.append([ch[x] for x in f])
             if isinstance(args[1], int):  # number of anchors
