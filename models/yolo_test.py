@@ -42,6 +42,8 @@ class Detect(nn.Module):
         # x = x.copy()  # for profiling
         z = []  # inference output
         self.training |= self.export
+        ##
+        #print(self.training) #True
         for i in range(self.nl):
             x[i] = self.m[i](x[i])  # conv
             bs, _, ny, nx = x[i].shape  # x(bs,255,20,20) to x(bs,3,20,20,85)
@@ -188,6 +190,7 @@ class Model(nn.Module):
         #self.model, self.save = parse_model(deepcopy(self.yaml), ch=[ch])  # model, savelist
         self.model, self.save, self.saveout = parse_model(deepcopy(self.yaml), ch=[ch])  # model, savelist
         ##save.out是detect层的索引
+        #print（self.saveout) #[65, 66, 67]
         
         # print(self.model)
         self.names = [str(i) for i in range(self.yaml['nc'])]  # default names
@@ -221,10 +224,15 @@ class Model(nn.Module):
             s = [1, 0.83, 0.67]  # scales
             f = [None, 3, None]  # flips (2-ud, 3-lr)
             y = []  # outputs
+            dout = []
             for si, fi in zip(s, f):
                 xi = scale_img(x.flip(fi) if fi else x, si, gs=int(self.stride.max()))
-                yi = self.forward_once(xi)[0]  # forward
+                #yi = self.forward_once(xi)[0]  # forward
                 # cv2.imwrite(f'img_{si}.jpg', 255 * xi[0].cpu().numpy().transpose((1, 2, 0))[:, :, ::-1])  # save
+                ##
+                yi, dout = self.forward_once(xi)[0]  # forward
+                #print(len(dout)) # 运行yolo_test文件不会augment
+                
                 yi[..., :4] /= si  # de-scale
                 if fi == 2:
                     yi[..., 1] = img_size[0] - yi[..., 1]  # de-flip ud
@@ -234,7 +242,17 @@ class Model(nn.Module):
             return torch.cat(y, 1), None  # augmented inference, train
         # 默认执行 正常前向推理
         else:
-            return self.forward_once(x, x2, profile)  # single-scale inference, train
+            # return self.forward_once(x, x2, profile)  # single-scale inference, train
+            x , dout = self.forward_once(x, x2, profile)
+            #print(len(x)) #list? len=3
+            print(len(dout)) # 3个list
+            ## dout的-1、-2、-3为三个detect的输出
+            print(dout[-1][0].shape) 
+            print(dout[-2][1].shape)
+            print(dout[-3][2].shape)
+            
+            #return x
+            return x, dout
 
 
     def forward_once(self, x, x2, profile=False):
@@ -254,6 +272,8 @@ class Model(nn.Module):
         # y: 存放着self.save=True的每一层的输出，因为后面的层结构concat等操作要用到
         # dt: 在profile中做性能评估时使用
         y, dt = [], []  # outputs
+        ##saveoutputs
+        dout = []
         i = 0
         for m in self.model:
             # print("Moudle", i)
@@ -282,16 +302,28 @@ class Model(nn.Module):
                 x = m(x2)
             else:
                 x = m(x)  # run正向推理  执行每一层的forward函数(除Concat和Detect操作)
+                ## detect操作会执行前面detect类的forward
                 
             # 存放着self.save的每一层的输出，因为后面需要用来作concat等操作要用到  不在self.save层的输出就为None
             y.append(x if m.i in self.save else None)  # save output
             # print(len(y))
+            ##
+            # dout.append(x if m.i in self.saveout else None)  # saveoutputs
+            # print(len(dout)) #没有的层也会保存none，所以len为68
+            if m.i in self.saveout:
+                print(m.i)
+                print(m.type)
+                #print(x.type) #list?
+                dout.append(x)
+            # print(len(dout)) # 3
+            
             i+=1
                 
         # 打印日志信息  前向推理时间
         if profile:
             logger.info('%.1fms total' % sum(dt))
-        return x
+        #return x
+        return x, dout
 
     def _initialize_biases(self, cf=None):  # initialize biases into Detect(), cf is class frequency
         # https://arxiv.org/abs/1708.02002 section 3.3
@@ -690,7 +722,9 @@ if __name__ == '__main__':
     input_rgb = torch.Tensor(8, 3, 640, 640).to(device)
     input_ir = torch.Tensor(8, 3, 640, 640).to(device)
 
-    output = model(input_rgb, input_ir)
+    #output = model(input_rgb, input_ir)
+    output,dout = model(input_rgb, input_ir)
+    
     print("YOLO")
     # 输出detect的输出 三个tensor
  
@@ -701,6 +735,16 @@ if __name__ == '__main__':
     # torch.Size([8, 3, 80, 80, 8])
     # torch.Size([8, 3, 40, 40, 8])
     # torch.Size([8, 3, 20, 20, 8])
+    
+    # 输出三个detect的输出
+    print(dout[-1][0].shape)
+    print(dout[-2][1].shape)
+    print(dout[-3][2].shape)
+    # detect3.yaml的输出size
+    # torch.Size([8, 3, 80, 80, 8])
+    # torch.Size([8, 3, 40, 40, 8])
+    # torch.Size([8, 3, 20, 20, 8])
+    
 
     # # Create model
     # model =TwoStreamModel(opt.cfg).to(device)
