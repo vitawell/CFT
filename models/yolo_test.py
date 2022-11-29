@@ -567,6 +567,8 @@ def parse_model(d, ch):  # model_dict, input_channels(3)
         m_.i, m_.f, m_.type, m_.np = i, f, t, np  # attach index, 'from' index, type, number params
         logger.info('%3s%18s%3s%10.0f  %-40s%-30s' % (i, f, n, np, t, args))  # print
         save.extend(x % i for x in ([f] if isinstance(f, int) else f) if x != -1)  # append to savelist
+        ##print(save)  #[6, 4, 14, 6, 16, 9, 19, 21, 20, 27, 23, 9, 21, 20, 41, 37, 19, 21, 20, 55, 51, 30, 33, 36, 44, 47, 50, 58, 61, 64, 65, 66, 68, 67]
+        ##保存f中不是-1的模型层添加到save列表中
         layers.append(m_)
         if i == 0:
             ch = []
