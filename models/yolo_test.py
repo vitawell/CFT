@@ -246,10 +246,10 @@ class Model(nn.Module):
             x , dout = self.forward_once(x, x2, profile)
             #print(len(x)) #list? len=3
             print(len(dout)) # 3个list
-            ## dout的-1、-2、-3为三个detect的输出
-            print(dout[-1][0].shape) 
-            print(dout[-2][1].shape)
-            print(dout[-3][2].shape)
+            ## dout为三个detect的输出
+            #print(dout[0][0].shape) 
+            #print(dout[1][1].shape)
+            #print(dout[2][2].shape)
             
             #return x
             return x, dout
@@ -737,9 +737,9 @@ if __name__ == '__main__':
     # torch.Size([8, 3, 20, 20, 8])
     
     # 输出三个detect的输出
-    print(dout[-1][0].shape)
-    print(dout[-2][1].shape)
-    print(dout[-3][2].shape)
+    print(dout[0][0].shape)
+    print(dout[1][1].shape)
+    print(dout[2][2].shape)
     # detect3.yaml的输出size
     # torch.Size([8, 3, 80, 80, 8])
     # torch.Size([8, 3, 40, 40, 8])
