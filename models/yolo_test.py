@@ -311,8 +311,8 @@ class Model(nn.Module):
             # dout.append(x if m.i in self.saveout else None)  # saveoutputs
             # print(len(dout)) #没有的层也会保存none，所以len为68
             if m.i in self.saveout:
-                print(m.i)
-                print(m.type)
+                #print(m.i)  #detect层的索引
+                #print(m.type) #models.yolo_test.Detect
                 #print(x.type) #list?
                 dout.append(x)
             # print(len(dout)) # 3
