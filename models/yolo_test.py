@@ -57,6 +57,7 @@ class Detect(nn.Module):
                 ##
                 #多个detect时，因为前面返回的x是元组所以无法操作？不是，返回值改list也报错！65第一个detect就报错！
                 #删去dout还是报错？改为单detect模型就不报错
+                print(self.stride[i])
                 y[..., 0:2] = (y[..., 0:2] * 2. - 0.5 + self.grid[i]) * self.stride[i]  # xy
                 y[..., 2:4] = (y[..., 2:4] * 2) ** 2 * self.anchor_grid[i]  # wh
                 z.append(y.view(bs, -1, self.no))
