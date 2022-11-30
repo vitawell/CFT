@@ -125,7 +125,7 @@ def test(data,
             out, train_out = model(img_rgb, img_ir, augment=augment)  # inference and training outputs
             ##为什么model会输出两个结果??若增加dout，不修改此处后面compute_loss中x in train_out仍会出错
             
-            ##print(out.size)
+            ##print(out.size)  #若不加dout，报错'tuple' object has no attribute 'size'
             ##print(train_out.size)
             
             t0 += time_synchronized() - t
