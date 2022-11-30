@@ -54,6 +54,8 @@ class Detect(nn.Module):
                     self.grid[i] = self._make_grid(nx, ny).to(x[i].device )
 
                 y = x[i].sigmoid()
+                ##
+                #多个detect时，因为前面返回的x是元组所以无法操作？65第一个detect就报错？
                 y[..., 0:2] = (y[..., 0:2] * 2. - 0.5 + self.grid[i]) * self.stride[i]  # xy
                 y[..., 2:4] = (y[..., 2:4] * 2) ** 2 * self.anchor_grid[i]  # wh
                 z.append(y.view(bs, -1, self.no))
@@ -243,16 +245,16 @@ class Model(nn.Module):
         # 默认执行 正常前向推理
         else:
             # return self.forward_once(x, x2, profile)  # single-scale inference, train
-            x , dout = self.forward_once(x, x2, profile)
+            x,dout = self.forward_once(x, x2, profile)
             #print(len(x)) #list? len=3
-            print(len(dout)) # 3个list
+            #print(len(dout)) # 3个list
             ## dout为三个detect的输出
             #print(dout[0][0].shape) 
             #print(dout[1][1].shape)
             #print(dout[2][2].shape)
             
             #return x
-            return x, dout
+            return x,dout
 
 
     def forward_once(self, x, x2, profile=False):
@@ -316,6 +318,10 @@ class Model(nn.Module):
                 #print(x.type) #list?
                 dout.append(x)
             # print(len(dout)) # 3
+          
+#             for j in range(3): #3个特征图
+#                 for i in range(1,len(dout)):
+#                     dout[0][j]=torch.cat((dout[0][j],dout[i][j]),4)
             
             i+=1
                 
@@ -323,7 +329,8 @@ class Model(nn.Module):
         if profile:
             logger.info('%.1fms total' % sum(dt))
         #return x
-        return x, dout
+        #return dout[0]
+        return x,dout
 
     def _initialize_biases(self, cf=None):  # initialize biases into Detect(), cf is class frequency
         # https://arxiv.org/abs/1708.02002 section 3.3
@@ -737,9 +744,9 @@ if __name__ == '__main__':
     # torch.Size([8, 3, 20, 20, 8])
     
     # 输出三个detect的输出
-    print(dout[0][0].shape)
-    print(dout[1][1].shape)
-    print(dout[2][2].shape)
+    #print(dout[0][0].shape)
+    #print(dout[1][1].shape)
+    #print(dout[2][2].shape)
     # detect3.yaml的输出size
     # torch.Size([8, 3, 80, 80, 8])
     # torch.Size([8, 3, 40, 40, 8])
