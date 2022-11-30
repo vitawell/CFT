@@ -68,7 +68,7 @@ def test(data,
         model.half()
 
     # Configure
-    model.eval()
+    model.eval()    #模型测试模式，固定住dropout层和Batch Normalization层
     if isinstance(data, str):
         is_coco = data.endswith('coco.yaml')
         with open(data) as f:
