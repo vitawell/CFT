@@ -791,9 +791,11 @@ def train_rgb_ir(hyp, opt, device, tb_writer=None):
                 # pred = model(imgs)  # forward
                 ##pred = model(imgs_rgb, imgs_ir)  # forward
                 pred = model(imgs_rgb, imgs_ir)  # forward
-                #返回dout，pred为list
+                #返回dout时，pred为list
                 #print(len(pred)) #len=2
-                pred=pred[0]
+                #pred = pred[0]
+                #dout = pred[1]
+                pred = pred[0]
                 
                 loss, loss_items = compute_loss(pred, targets.to(device))  # loss scaled by batch_size
                 if rank != -1:
