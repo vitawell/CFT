@@ -153,14 +153,14 @@ def test(data,
             ##print(dout[0][1][1].size()) #torch.Size([16, 3, 22, 42, 21])
 
             #3个元组
-            out = []
+            out = []  ##推理out
             for k in range(0,len(dout)):
                 out.append(dout[k][0])
             for k in range(1,len(dout)):
                 out[0]=torch.cat((out[0],out[k]),1) 
             out = out[0] #将三个detect结果concat
             
-            train_out = []
+            train_out = []  ##训练train_out
             for k in range(0,len(dout)):
                 train_out.append(dout[k][1])
             for j in range(3): #3个特征图
