@@ -12,7 +12,8 @@
 
 使用soft-nms，修改了utils/general.py，增加模块my_soft_nms，修改模块non_max_suppression中使用nms为使用my_soft_nms。
 
-修改models/yolo_test.py，dout为几个detect层的输出
+修改models/yolo_test.py，dout为几个detect层的输出.
+需要相应修改train、test、detect_twostream
 
 ## CFT
 CFT修改了模型yolo.py，改为models/yolo_test.py，加载数据时若输入为-4则表示输入为第二个模态。
