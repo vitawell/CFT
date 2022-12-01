@@ -124,9 +124,9 @@ def test(data,
             #                    如: [1, 3, 80, 80, 25] [1, 3, 40, 40, 25] [1, 3, 20, 20, 25]
             out, train_out = model(img_rgb, img_ir, augment=augment)  # inference and training outputs
             ##print(len(out))  #16?
-            ##print(len(train_out))  #3
             ##print(out.size)  #<built-in method size of Tensor object at 0x7f5d21856f98>
             ##print(out.size())  #torch.Size([16, 14553, 21])
+            ##print(len(train_out))  #3
             ##print(train_out.size())  #list no size
             
             t0 += time_synchronized() - t
