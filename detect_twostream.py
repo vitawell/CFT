@@ -81,12 +81,13 @@ def detect(opt):
         # Inference
         t1 = time_synchronized()
         pred = model(img, img2, augment=opt.augment)[0]
-        ##
-        pred = pred[1] 
-        for j in range(3): #3个特征图
-            for k in range(1,len(pred)):
-                pred[0][j]=torch.cat((pred[0][j],pred[k][j]),1) #第1维不匹配 一个80一个40
-        pred = pred[0] #将三个detect结果concat
+        ##pred为输出的推理out
+        out = []
+        for k in range(0,len(dout)):
+            out.append(pred[k][0])
+        for k in range(1,len(dout)):
+            out[0]=torch.cat((out[0],out[k]),1) 
+        pred = out[0] #将三个detect结果concat
 
         # Apply NMS
         pred = non_max_suppression(pred, opt.conf_thres, opt.iou_thres, classes=opt.classes, agnostic=opt.agnostic_nms)
