@@ -139,7 +139,36 @@ def test(data,
             ##print(out1.size())  #tuple no size
             ##print(out.size())  #torch.Size([16, 14553, 21])
             ##print(len(train_out))  #3
-            ##print(dout.size()) #list no size
+            #print(train_out[0].size()) #torch.Size([16, 3, 44, 84, 21])
+            
+            ##print(len(dout))  #3个元组 
+            ##print(dout[0].size()) #tuple no size
+            ##print(len(dout[0]))  #2
+            #out = dout[0][0]
+            #train_out = dout[0][1]
+            ##print(dout[0][0].size()) #torch.Size([16, 14553, 21])
+            ##print(dout[0][1].size()) #list
+            ##print(len(dout[0][1])) #3
+            ##print(dout[0][1][0].size()) #torch.Size([16, 3, 44, 84, 21])
+            ##print(dout[0][1][1].size()) #torch.Size([16, 3, 22, 42, 21])
+
+            #3个元组
+            out = []
+            for k in range(0,len(dout)):
+                out.append(dout[k][0])
+            for k in range(1,len(dout)):
+                out[0]=torch.cat((out[0],out[k]),1) 
+            out = out[0] #将三个detect结果concat
+            
+            train_out = []
+            for k in range(0,len(dout)):
+                train_out.append(dout[k][1])
+            for j in range(3): #3个特征图
+                for k in range(1,len(dout)):
+                    train_out[0][j]=torch.cat((train_out[0][j],train_out[k][j]),1)           
+            train_out = train_out[0] #将三个detect结果concat
+            
+            
             
             t0 += time_synchronized() - t
 
