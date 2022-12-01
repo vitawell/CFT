@@ -131,8 +131,23 @@ def test(data,
             ##print(train_out.size) # 'list' has no attribute 'size'
             ##print(len(train_out))  #len=1 (dout?)
             
-            out = model(img_rgb, img_ir, augment=augment)  #改为只dout，pred=dout[-1]
-            ##print(len(out))  #len=1
+            out1, dout = model(img_rgb, img_ir, augment=augment)  #改为只dout，pred=dout[-1]
+            ##
+            #3个元组
+            out = []  ##推理out
+            for k in range(0,len(dout)):
+                out.append(dout[k][0])
+            for k in range(1,len(dout)):
+                out[0]=torch.cat((out[0],out[k]),1) 
+            out = out[0] #将三个detect结果concat
+            
+            train_out = []  ##训练train_out
+            for k in range(0,len(dout)):
+                train_out.append(dout[k][1])
+            for j in range(3): #3个特征图
+                for k in range(1,len(dout)):
+                    train_out[0][j]=torch.cat((train_out[0][j],train_out[k][j]),1)           
+            train_out = train_out[0] #将三个detect结果concat
             
             
             t0 += time_synchronized() - t
