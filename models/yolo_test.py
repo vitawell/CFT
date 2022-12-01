@@ -321,6 +321,7 @@ class Model(nn.Module):
             else:
                 x = m(x)  # run正向推理  执行每一层的forward函数(除Concat和Detect操作)
                 ## detect操作会执行前面detect类的forward
+                ## 若推理阶段，detect会返回一个元组 (out,train_out)
                 
             # 存放着self.save的每一层的输出，因为后面需要用来作concat等操作要用到  不在self.save层的输出就为None
             y.append(x if m.i in self.save else None)  # save output
