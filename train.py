@@ -800,6 +800,8 @@ def train_rgb_ir(hyp, opt, device, tb_writer=None):
                 
                 pred = pred[1] #dout
                 #print(len(pred)) #len=3
+                #print(len(pred[0])) #len=3
+                #print(pred[0][0].shape) #torch.Size([8, 3, 80, 80, 21])
                 for j in range(3): #3个特征图
                     for k in range(1,len(pred)):
                         pred[0][j]=torch.cat((pred[0][j],pred[k][j]),1) #第1维test map为0?
