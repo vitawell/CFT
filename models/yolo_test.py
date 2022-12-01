@@ -23,7 +23,7 @@ except ImportError:
 
 
 class Detect(nn.Module):
-    stride = None  # strides computed during build
+    stride = None  # strides computed during build  ##只实例化了最后一个detect？
     export = False  # onnx export
 
     def __init__(self, nc=80, anchors=(), ch=()):  # detection layer
@@ -193,28 +193,42 @@ class Model(nn.Module):
             self.yaml['anchors'] = round(anchors)  # override yaml value
         #self.model, self.save = parse_model(deepcopy(self.yaml), ch=[ch])  # model, savelist
         self.model, self.save, self.saveout = parse_model(deepcopy(self.yaml), ch=[ch])  # model, savelist
-        ##save.out是detect层的索引
+        ##saveout是detect层的索引
         #print（self.saveout) #[65, 66, 67]
         
         # print(self.model)
         self.names = [str(i) for i in range(self.yaml['nc'])]  # default names
         # logger.info([x.shape for x in self.forward(torch.zeros(1, ch, 64, 64))])
 
-        # Build strides, anchors
-        m = self.model[-1]  # Detect()
-        # print(m)
+#         #Build strides, anchors
+#         m = self.model[-1]  # Detect()
+#         #print(m)
+#         if isinstance(m, Detect):
+#                 s = 256  # 2x min stride
+#                 # print("1, ch, s, s", 1, ch, s, s)
+#                 # m.stride = torch.tensor([s / x.shape[-2] for x in self.forward(torch.zeros(1, ch, s, s), torch.zeros(1, ch, s, s))])  # forward
+#                 m.stride = torch.Tensor([8.0, 16.0, 32.0])
+#                 # print("m.stride", m.stride)
+#                 m.anchors /= m.stride.view(-1, 1, 1)
+#                 check_anchor_order(m)
+#                 self.stride = m.stride
+#                 self._initialize_biases()  # only run once
+#                 # logger.info('Strides: %s' % m.stride.tolist())
+        ##Build多个detect层
+        for i in self.saveout:
+            m = self.model[i] 
 
-        if isinstance(m, Detect):
-            s = 256  # 2x min stride
-            # print("1, ch, s, s", 1, ch, s, s)
-            # m.stride = torch.tensor([s / x.shape[-2] for x in self.forward(torch.zeros(1, ch, s, s), torch.zeros(1, ch, s, s))])  # forward
-            m.stride = torch.Tensor([8.0, 16.0, 32.0])
-            # print("m.stride", m.stride)
-            m.anchors /= m.stride.view(-1, 1, 1)
-            check_anchor_order(m)
-            self.stride = m.stride
-            self._initialize_biases()  # only run once
-            # logger.info('Strides: %s' % m.stride.tolist())
+            if isinstance(m, Detect):
+                s = 256  # 2x min stride
+                # print("1, ch, s, s", 1, ch, s, s)
+                # m.stride = torch.tensor([s / x.shape[-2] for x in self.forward(torch.zeros(1, ch, s, s), torch.zeros(1, ch, s, s))])  # forward
+                m.stride = torch.Tensor([8.0, 16.0, 32.0])
+                # print("m.stride", m.stride)
+                m.anchors /= m.stride.view(-1, 1, 1)
+                check_anchor_order(m)
+        self.stride = m.stride
+        self._initialize_biases()  # only run once
+        # logger.info('Strides: %s' % m.stride.tolist())
 
         # Init weights, biases
         initialize_weights(self)
