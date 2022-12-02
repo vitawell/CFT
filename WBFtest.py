@@ -17,7 +17,34 @@ from utils.metrics import ap_per_class, ConfusionMatrix
 from utils.plots import plot_images, output_to_target, plot_study_txt
 from utils.torch_utils import select_device, time_synchronized
 
+from utils.callbacks import Callbacks
+import cv2
 from models.WBF.examples.example import example_wbf_2_models, example_wbf_1_model
+
+
+def process_batch(detections, labels, iouv):
+    """
+    Return correct predictions matrix. Both sets of boxes are in (x1, y1, x2, y2) format.
+    Arguments:
+        detections (Array[N, 6]), x1, y1, x2, y2, conf, class
+        labels (Array[M, 5]), class, x1, y1, x2, y2
+    Returns:
+        correct (Array[N, 10]), for 10 IoU levels
+    """
+    correct = torch.zeros(detections.shape[0], iouv.shape[0], dtype=torch.bool, device=iouv.device)
+    iou = box_iou(labels[:, 1:], detections[:, :4])
+    x = torch.where((iou >= iouv[0]) & (labels[:, 0:1] == detections[:, 5]))  # IoU above threshold and classes match
+    if x[0].shape[0]:
+        matches = torch.cat((torch.stack(x, 1), iou[x[0], x[1]][:, None]), 1).cpu().numpy()  # [label, detection, iou]
+        if x[0].shape[0] > 1:
+            matches = matches[matches[:, 2].argsort()[::-1]]
+            matches = matches[np.unique(matches[:, 1], return_index=True)[1]]
+            # matches = matches[matches[:, 2].argsort()[::-1]]
+            matches = matches[np.unique(matches[:, 0], return_index=True)[1]]
+        matches = torch.Tensor(matches).to(iouv.device)
+        correct[matches[:, 1].long()] = matches[:, 2:3] >= iouv
+    return correct
+
 
 
 def test(data,
@@ -37,6 +64,7 @@ def test(data,
          save_hybrid=False,  # for hybrid auto-labelling
          save_conf=True,  # save auto-label confidences
          plots=False,
+         callbacks=Callbacks(),
          wandb_logger=None,
          compute_loss=None,
          half_precision=True,
@@ -179,8 +207,10 @@ def test(data,
         # 6.5、统计每张图片的真实框、预测框信息  Statistics per image
         # 为每张图片做统计，写入预测信息到txt文件，生成json文件字典，统计tp等
         # out: list{bs}  [300, 6] [42, 6] [300, 6] [300, 6]  [pred_obj_num, x1y1x2y2+object_conf+cls]
-        for si, (im0, model2_dets, model1_dets) in enumerate(zip(img, model1_out, model2_out)):
-            
+        for si, (im0, model2_dets, model1_dets) in enumerate(zip(img_rgb, model1_out, model2_out)):
+            #
+            print(im0.shape)  #用img torch.Size([6, 384, 672])
+            #用img_rgb torch.Size([3, 384, 672])
             im0 = im0.detach().cpu().numpy() * 255
             im0 = im0.transpose((1,2,0)).astype(np.uint8).copy()
             # concat two model's outputs
@@ -246,7 +276,8 @@ def test(data,
             # Evaluate 评估
             if nl:
                 tbox = xywh2xyxy(labels[:, 1:5])  # target boxes
-                scale_coords(im[si].shape[1:], tbox, shape, shapes[si][1])  # native-space labels
+                #scale_coords(im[si].shape[1:], tbox, shape, shapes[si][1])  # native-space labels
+                scale_coords(img_rgb[si].shape[1:], tbox, shape, shapes[si][1])
                 labelsn = torch.cat((labels[:, 0:1], tbox), 1)  # native-space labels
                 correct = process_batch(predn, labelsn, iouv)
                 if plots:
@@ -283,7 +314,7 @@ def test(data,
                                   'category_id': coco91class[int(p[5])] if is_coco else int(p[5]),
                                   'bbox': [round(x, 3) for x in b],
                                   'score': round(p[4], 5)})
-            callbacks.run('on_val_image_end', pred, predn, path, names, im[si])
+            callbacks.run('on_val_image_end', pred, predn, path, names, img_rgb[si])
 
             
         
