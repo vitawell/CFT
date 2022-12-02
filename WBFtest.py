@@ -17,7 +17,7 @@ from utils.metrics import ap_per_class, ConfusionMatrix
 from utils.plots import plot_images, output_to_target, plot_study_txt
 from utils.torch_utils import select_device, time_synchronized
 
-from model.WBF.examples.example import example_wbf_2_models, example_wbf_1_model
+from models.WBF.examples.example import example_wbf_2_models, example_wbf_1_model
 
 
 def test(data,
