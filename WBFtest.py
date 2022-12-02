@@ -180,6 +180,10 @@ def test(data,
             model1_out = out[0]  #depth
             model2_out = out[1]  #rgb
             model3_out = out[2]  #add
+            
+            #print(len(model1_out))  #16
+            #print(len(model2_out))  #16
+            #print(len(model3_out))  #16
 
             
             t0 += time_synchronized() - t  #模型时间
@@ -202,8 +206,12 @@ def test(data,
             model2_out = non_max_suppression(model2_out, conf_thres, iou_thres, labels=lb, multi_label=True, agnostic=single_cls)
             model3_out = non_max_suppression(model3_out, conf_thres, iou_thres, labels=lb, multi_label=True, agnostic=single_cls)
             
+            #print(len(model1_out))  #16
             #print(len(model2_out))  #16
+            #print(len(model3_out))  #16
+            
             model2_out = model2_out + model1_out
+            #print(len(model2_out))  #32!
             
             t1 += time_synchronized() - t  # 累计NMS时间
 
@@ -258,8 +266,9 @@ def test(data,
             im0 = im0.detach().cpu().numpy() * 255
             im0 = im0.transpose((1,2,0)).astype(np.uint8).copy()
             #print(im0.shape)  #(384, 672, 3)
+            #后面example_wbf_1_models里面 img_height, img_width = img.shape[1:]
             
-     
+            #model2为空?
             if len(model2_dets):  #若model2不为空
                 #scale_coords将坐标coords(x1y1x2y2)从img_shape缩放到im0_shape尺寸（尺寸一致）
                 model2_dets[:, :4] = scale_coords(img.shape[2:], model2_dets[:, :4], im0.shape).round()
@@ -275,6 +284,10 @@ def test(data,
             
             # Flag for indicating detection success 检测成功标志
             detect_success = False
+            
+             
+            print(len(model2_dets))  #0?  #model2为空?
+            print(len(model1_dets))  #1
                 
             if len(model2_dets)>0 and len(model1_dets)>0:
                 boxes, scores, labels = example_wbf_2_models(model2_dets.detach().cpu().numpy(), model1_dets.detach().cpu().numpy(), im0)
