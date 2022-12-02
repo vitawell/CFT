@@ -202,6 +202,9 @@ def test(data,
             model2_out = non_max_suppression(model2_out, conf_thres, iou_thres, labels=lb, multi_label=True, agnostic=single_cls)
             model3_out = non_max_suppression(model3_out, conf_thres, iou_thres, labels=lb, multi_label=True, agnostic=single_cls)
             
+            #print(len(model2_out))  #16
+            model2_out = model2_out + model3_out
+            
             t1 += time_synchronized() - t  # 累计NMS时间
 
         # 6.5、统计每张图片的真实框、预测框信息  Statistics per image
@@ -209,11 +212,14 @@ def test(data,
         # out: list{bs}  [300, 6] [42, 6] [300, 6] [300, 6]  [pred_obj_num, x1y1x2y2+object_conf+cls]
         for si, (im0, model2_dets, model1_dets) in enumerate(zip(img_rgb, model1_out, model2_out)):
             #
-            print(im0.shape)  #用img torch.Size([6, 384, 672])
+            #print(im0.shape)  #用img torch.Size([6, 384, 672])
             #用img_rgb torch.Size([3, 384, 672])
             im0 = im0.detach().cpu().numpy() * 255
             im0 = im0.transpose((1,2,0)).astype(np.uint8).copy()
             # concat two model's outputs
+#             if len(model3_dets):
+#                 model3_dets[:, :4] = scale_coords(img.shape[2:], model3_dets[:, :4], im0.shape).round()
+                
             if len(model2_dets):  #若model2不为空
                 model2_dets[:, :4] = scale_coords(img.shape[2:], model2_dets[:, :4], im0.shape).round()
 
@@ -223,6 +229,15 @@ def test(data,
             # Flag for indicating detection success 检测成功标志
             detect_success = False
             
+#             if len(model3_dets)>0 and len(model1_dets)>0:
+#                 boxes, scores, labels = example_wbf_2_models(model3_dets.detach().cpu().numpy(), model1_dets.detach().cpu().numpy(), im0)
+#                 boxes[:,0], boxes[:,2] = boxes[:,0] * width, boxes[:,2] * width
+#                 boxes[:,1], boxes[:,3] = boxes[:,1] * height, boxes[:,3] * height
+                
+#                 for box in boxes:
+#                     cv2.rectangle(im0, (int(box[0]), int(box[1])), (int(box[2]), int(box[3])), (0,0,255), 3)
+#                 detect_success = True
+                
             if len(model2_dets)>0 and len(model1_dets)>0:
                 boxes, scores, labels = example_wbf_2_models(model2_dets.detach().cpu().numpy(), model1_dets.detach().cpu().numpy(), im0)
                 boxes[:,0], boxes[:,2] = boxes[:,0] * width, boxes[:,2] * width
@@ -314,7 +329,7 @@ def test(data,
                                   'category_id': coco91class[int(p[5])] if is_coco else int(p[5]),
                                   'bbox': [round(x, 3) for x in b],
                                   'score': round(p[4], 5)})
-            callbacks.run('on_val_image_end', pred, predn, path, names, img_rgb[si])
+            callbacks.run('on_val_image_end', pred, predn, path, names, img_rgb[si]) ##早停训练？
 
             
         
