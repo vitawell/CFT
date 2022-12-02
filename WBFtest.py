@@ -257,11 +257,14 @@ def test(data,
             #用img_rgb torch.Size([3, 384, 672])
             im0 = im0.detach().cpu().numpy() * 255
             im0 = im0.transpose((1,2,0)).astype(np.uint8).copy()
+            #print(im0.shape)  #(384, 672, 3)
+            
      
             if len(model2_dets):  #若model2不为空
                 #scale_coords将坐标coords(x1y1x2y2)从img_shape缩放到im0_shape尺寸（尺寸一致）
                 model2_dets[:, :4] = scale_coords(img.shape[2:], model2_dets[:, :4], im0.shape).round()
                 ##归一化坐标到[0,1]，后面example_wbf_2_models里面会归一化
+                ##为什么坐标会出现一百多？
                 #model2_dets[:, 0],  model2_dets[:, 2] = model2_dets[:, 0]/ width,  model2_dets[:, 2]/ width
                 #model2_dets[:, 1],  model2_dets[:, 3] = model2_dets[:, 0]/ height,  model2_dets[:, 2]/ height
 
