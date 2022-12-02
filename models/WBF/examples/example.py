@@ -86,6 +86,9 @@ def example_wbf_1_model(det1, img, iou_thr=0.55, draw_image=True):
 
     if len(img.shape)==3:
         img_height, img_width = img.shape[1:]
+        ##
+        print(img_height)  #672
+        print(img_width)  #3 ??
     elif len(img.shape) == 4:
         img_height, img_width = img.shape[2:]
 
