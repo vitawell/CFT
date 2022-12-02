@@ -47,6 +47,9 @@ def example_wbf_2_models(det1, det2, img, iou_thr=0.55, draw_image=True):
     """
     if len(img.shape)==3:
         img_height, img_width = img.shape[0:2]
+        ##
+        print(img_height)  #
+        print(img_width)  #
     elif len(img.shape) == 4:
         img_height, img_width = img.shape[1:3]
 
@@ -85,12 +88,12 @@ def example_wbf_1_model(det1, img, iou_thr=0.55, draw_image=True):
     """
 
     if len(img.shape)==3:
-        img_height, img_width = img.shape[1:]
+        img_height, img_width = img.shape[0:2]
         ##
-        print(img_height)  #672
-        print(img_width)  #3 ??
+        print(img_height)  #
+        print(img_width)  #
     elif len(img.shape) == 4:
-        img_height, img_width = img.shape[2:]
+        img_height, img_width = img.shape[1:3]
 
     # normalize
     det1[:,0] /= img_width
