@@ -259,10 +259,16 @@ def test(data,
             im0 = im0.transpose((1,2,0)).astype(np.uint8).copy()
      
             if len(model2_dets):  #若model2不为空
-                model2_dets[:, :4] = scale_coords(img.shape[2:], model2_dets[:, :4], im0.shape).round()
+                ##scale_coords将坐标coords(x1y1x2y2)从img_shape缩放到im0_shape尺寸（尺寸一致）
+                #model2_dets[:, :4] = scale_coords(img.shape[2:], model2_dets[:, :4], im0.shape).round()
+                ##归一化坐标到[0,1]
+                model2_dets[:, 0],  model2_dets[:, 2] = model2_dets[:, 0]/ width,  model2_dets[:, 2]/ width
+                model2_dets[:, 1],  model2_dets[:, 3] = model2_dets[:, 0]/ height,  model2_dets[:, 2]/ height
 
             if len(model1_dets):
-                model1_dets[:, :4] = scale_coords(img.shape[2:], model1_dets[:, :4], im0.shape).round()
+                #model1_dets[:, :4] = scale_coords(img.shape[2:], model1_dets[:, :4], im0.shape).round()
+                model1_dets[:, 0],  model1_dets[:, 2] = model1_dets[:, 0]/ width,  model1_dets[:, 2]/ width
+                model1_dets[:, 1],  model1_dets[:, 3] = model1_dets[:, 0]/ height,  model1_dets[:, 2]/ height
             
             # Flag for indicating detection success 检测成功标志
             detect_success = False
