@@ -259,11 +259,28 @@ def test(data,
             # tcls: [gt_num, 1] 当前图片所有gt框的class    
             stats.append((correct.cpu(), pred[:, 4].cpu(), pred[:, 5].cpu(), tcls))  # (correct, conf, pcls, tcls)
 
-            # Save/log
+            # Append to text file  保存预测信息到txt文件
             if save_txt:
-                save_one_txt(predn, save_conf, shape, file=save_dir / 'labels' / (path.stem + '.txt'))
+                # gn = [w, h, w, h] 对应图片的宽高  用于后面归一化
+                gn = torch.tensor(shapes[si][0])[[1, 0, 1, 0]]  # normalization gain whwh
+                for *xyxy, conf, cls in predn.tolist():
+                    # xyxy -> xywh 并作归一化处理
+                    xywh = (xyxy2xywh(torch.tensor(xyxy).view(1, 4)) / gn).view(-1).tolist()  # normalized xywh
+                    line = (cls, *xywh, conf) if save_conf else (cls, *xywh)  # label format
+                    # 保存预测类别和坐标值到对应图片id.txt文件中
+                    with open(save_dir / 'labels' / (path.stem + '.txt'), 'a') as f:
+                        f.write(('%g ' * len(line)).rstrip() % line + '\n')
+            # Append to pycocotools JSON dictionary  将预测信息保存到coco格式的json字典(后面存入json文件)
             if save_json:
-                save_one_json(predn, jdict, path, class_map)  # append to COCO-JSON dictionary
+                # [{"image_id": 42, "category_id": 18, "bbox": [258.15, 41.29, 348.26, 243.78], "score": 0.236}, ...
+                image_id = int(path.stem) if path.stem.isnumeric() else path.stem
+                box = xyxy2xywh(predn[:, :4])  # xywh
+                box[:, :2] -= box[:, 2:] / 2  # xy center to top-left corner
+                for p, b in zip(pred.tolist(), box.tolist()):
+                    jdict.append({'image_id': image_id,
+                                  'category_id': coco91class[int(p[5])] if is_coco else int(p[5]),
+                                  'bbox': [round(x, 3) for x in b],
+                                  'score': round(p[4], 5)})
             callbacks.run('on_val_image_end', pred, predn, path, names, im[si])
 
             
