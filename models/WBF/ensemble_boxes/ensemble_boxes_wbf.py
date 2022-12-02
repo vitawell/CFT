@@ -85,7 +85,7 @@ def prefilter_boxes(boxes, scores, labels, weights, thr):
                 warnings.warn('Y2 > 1 in box. Set it to 1. Check that you normalize boxes in [0, 1] range.')
                 y2 = 1
             if (x2 - x1) * (y2 - y1) == 0.0:
-                warnings.warn("Zero area box skipped: {}.".format(box_part))
+                warnings.warn("Zero area box skipped: {}.".format(box_part))  #如果没有归一化到[0, 1]，会导致此警告
                 continue
 
             # [label, score, weight, model index, x1, y1, x2, y2]
