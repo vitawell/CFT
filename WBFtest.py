@@ -334,6 +334,13 @@ def test(data,
                 continue
 
             # Predictions
+            #print(p_boxes.shape) #(1,4)
+            if len(p_labels.shape)>1: #(1,)
+                #print(p_labels.shape) #torch.Size([27, 5]) ？怎么会变成二维
+                #print(p_labels[0])    #tensor([ 15.00000, 248.25023, 158.49985,  41.16672,  37.00008], device='cuda:0')
+                ##只取第1列
+                p_labels = p_labels[:,0]
+            
             ## 报错，/home/ubuntu/miniconda3/envs/WBF/lib/python3.6/site-packages/torch/_tensor.py in __array__
             ## 将报错代码 return self.numpy()改为self.cpu().numpy()即可
             pred = np.concatenate([p_boxes, np.expand_dims(p_scores, axis=1), np.expand_dims(p_labels, axis=1)], axis=1)
