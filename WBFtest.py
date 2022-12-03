@@ -334,6 +334,8 @@ def test(data,
                 continue
 
             # Predictions
+            ## 报错，/home/ubuntu/miniconda3/envs/WBF/lib/python3.6/site-packages/torch/_tensor.py in __array__
+            ## 将报错代码 return self.numpy()改为self.cpu().numpy()即可
             pred = np.concatenate([p_boxes, np.expand_dims(p_scores, axis=1), np.expand_dims(p_labels, axis=1)], axis=1)
             pred = torch.from_numpy(pred).to(device)
             predn = pred.clone()
