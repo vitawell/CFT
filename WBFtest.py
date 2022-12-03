@@ -213,7 +213,6 @@ def test(data,
             model2_out = model2_out + model1_out
             #print(len(model2_out))  #32!
             
-            t1 += time_synchronized() - t  # 累计NMS时间
 
         # 6.5、统计每张图片的真实框、预测框信息  Statistics per image
         # 为每张图片做统计，写入预测信息到txt文件，生成json文件字典，统计tp等
@@ -312,13 +311,15 @@ def test(data,
                 for box in boxes:
                     cv2.rectangle(im0, (int(box[0]), int(box[1])), (int(box[2]), int(box[3])), (0,0,255), 3)
                 detect_success = True
-            else:
+            else: ##没有时返回0
                 boxes, scores, labels = np.zeros((0, 4)), np.zeros((0,)), np.zeros((0,))
             p_boxes, p_scores, p_labels = boxes, scores, labels
             # Result visualization
             #if detect_success is True:
                 #cv2.imshow("detected_image", im0)
                 #cv2.waitKey(0)
+            
+            t1 += time_synchronized() - t  # 累计NMS时间
             
             # 获取第si张图片的gt标签信息 包括class, x, y, w, h    target[:, 0]为标签属于哪张图片的编号
             labels = targets[targets[:, 0] == si, 1:]   # [:, class+xywh]
@@ -337,11 +338,11 @@ def test(data,
 
             # Predictions
             #print(p_boxes.shape) #(1,4)
-            if len(p_labels.shape)>1: #(1,)
+            if len(p_labels.shape)>1: #(1,) #中途报错维度不一致
                 #print(p_labels.shape) #torch.Size([27, 5]) ？怎么会变成二维
                 #print(p_labels[0])    #tensor([ 15.00000, 248.25023, 158.49985,  41.16672,  37.00008], device='cuda:0')
                 ##只取第1列
-                n0 = p_boxes.shape[0]
+                n0 = p_boxes.shape[0]  #中途报错size不一致
                 p_labels = p_labels[:n0,0]
             
             ## 报错，/home/ubuntu/miniconda3/envs/WBF/lib/python3.6/site-packages/torch/_tensor.py in __array__
