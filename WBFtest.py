@@ -19,7 +19,7 @@ from utils.torch_utils import select_device, time_synchronized
 
 from utils.callbacks import Callbacks
 import cv2
-from models.WBF.examples.example import example_wbf_2_models, example_wbf_1_model
+from models.WBF.examples.example import example_wbf_3_models, example_wbf_2_models, example_wbf_1_model
 
 
 def process_batch(detections, labels, iouv):
@@ -218,7 +218,7 @@ def test(data,
         # 为每张图片做统计，写入预测信息到txt文件，生成json文件字典，统计tp等
         # out: list{bs}  [300, 6] [42, 6] [300, 6] [300, 6]  [pred_obj_num, x1y1x2y2+object_conf+cls]
         
-        ### 3个模型怎么融合？
+        ### 3个模型融合？
         for si, (im0, model1_dets, model2_dets, model3_dets) in enumerate(zip(img_rgb, model1_out, model2_out, model3_out)):
             #
             #print(im0.shape)  #用img torch.Size([6, 384, 672])
@@ -236,25 +236,52 @@ def test(data,
                 model1_dets[:, :4] = scale_coords(img.shape[2:], model1_dets[:, :4], im0.shape).round()
             
             # Flag for indicating detection success 检测成功标志
-            detect_success = False
+            #detect_success = False
             
-            if len(model3_dets)>0 and len(model2_dets)>0:
-                boxes, scores, labels = example_wbf_2_models(model3_dets.detach().cpu().numpy(), model2_dets.detach().cpu().numpy(), im0)
+            if len(model3_dets)>0 and len(model2_dets)>0 and len(model1_dets)>0:
+                boxes, scores, labels = example_wbf_3_models(model3_dets.detach().cpu().numpy(), model2_dets.detach().cpu().numpy(), model1_dets.detach().cpu().numpy(), im0)
                 boxes[:,0], boxes[:,2] = boxes[:,0] * width, boxes[:,2] * width
                 boxes[:,1], boxes[:,3] = boxes[:,1] * height, boxes[:,3] * height
                 
-            if len(model2_dets)>0 and len(model1_dets)>0:
-                boxes2, scores2, labels2 = example_wbf_2_models(model3_dets.detach().cpu().numpy(), model2_dets.detach().cpu().numpy(), im0)
-                boxes2[:,0], boxes2[:,2] = boxes2[:,0] * width, boxes2[:,2] * width
-                boxes2[:,1], boxes2[:,3] = boxes2[:,1] * height, boxes2[:,3] * height
+            elif len(model3_dets)>0 and len(model2_dets)>0:
+                boxes, scores, labels = example_wbf_2_models(model3_dets.detach().cpu().numpy(), model2_dets.detach().cpu().numpy(), im0)
+                boxes2[:,0], boxes2[:,2] = boxes[:,0] * width, boxes[:,2] * width
+                boxes2[:,1], boxes2[:,3] = boxes[:,1] * height, boxes[:,3] * height
                 
-                boxes = boxes + boxes2
-                scores = scores + scores2
-                labels = labels + labels2
+            elif len(model3_dets)>0 and len(model1_dets)>0:
+                boxes, scores, labels = example_wbf_2_models(model3_dets.detach().cpu().numpy(), model1_dets.detach().cpu().numpy(), im0)
+                boxes[:,0], boxes[:,2] = boxes[:,0] * width, boxes[:,2] * width
+                boxes[:,1], boxes[:,3] = boxes[:,1] * height, boxes[:,3] * height
+            
+            elif len(model2_dets)>0 and len(model1_dets)>0:
+                boxes, scores, labels = example_wbf_2_models(model2_dets.detach().cpu().numpy(), model1_dets.detach().cpu().numpy(), im0)
+                boxes[:,0], boxes[:,2] = boxes[:,0] * width, boxes[:,2] * width
+                boxes[:,1], boxes[:,3] = boxes[:,1] * height, boxes[:,3] * height
                 
-                for box in boxes:
-                    cv2.rectangle(im0, (int(box[0]), int(box[1])), (int(box[2]), int(box[3])), (0,0,255), 3)
-                detect_success = True
+            elif len(model3_dets)>0:
+                boxes, scores, labels = example_wbf_1_model(model3_dets.detach().cpu().numpy(), im0)
+                boxes[:,0], boxes[:,2] = boxes[:,0] * width, boxes[:,2] * width
+                boxes[:,1], boxes[:,3] = boxes[:,1] * height, boxes[:,3] * height
+                
+            elif len(model2_dets)>0:
+                boxes, scores, labels = example_wbf_1_model(model2_dets.detach().cpu().numpy(), im0)
+                boxes[:,0], boxes[:,2] = boxes[:,0] * width, boxes[:,2] * width
+                boxes[:,1], boxes[:,3] = boxes[:,1] * height, boxes[:,3] * height
+                
+            elif len(model1_dets)>0:
+                boxes, scores, labels = example_wbf_1_model(model1_dets.detach().cpu().numpy(), im0)
+                boxes[:,0], boxes[:,2] = boxes[:,0] * width, boxes[:,2] * width
+                boxes[:,1], boxes[:,3] = boxes[:,1] * height, boxes[:,3] * height
+                
+            else: ##没有时返回0
+                boxes, scores, labels = np.zeros((0, 4)), np.zeros((0,)), np.zeros((0,))
+                #boxes = boxes + boxes2
+                #scores = scores + scores2
+                #labels = labels + labels2
+                
+            for box in boxes:
+                cv2.rectangle(im0, (int(box[0]), int(box[1])), (int(box[2]), int(box[3])), (0,0,255), 3)
+               
                 
                 
         ## 2个模型
@@ -286,8 +313,8 @@ def test(data,
             detect_success = False
             
              
-            print(len(model2_dets))  #0?  #model2为空?
-            print(len(model1_dets))  #1
+            #print(len(model2_dets))  #0?  #model2为空?
+            #print(len(model1_dets))  #1
                 
             if len(model2_dets)>0 and len(model1_dets)>0:
                 boxes, scores, labels = example_wbf_2_models(model2_dets.detach().cpu().numpy(), model1_dets.detach().cpu().numpy(), im0)
@@ -313,6 +340,8 @@ def test(data,
                 detect_success = True
             else: ##没有时返回0
                 boxes, scores, labels = np.zeros((0, 4)), np.zeros((0,)), np.zeros((0,))
+            
+            ###
             p_boxes, p_scores, p_labels = boxes, scores, labels
             # Result visualization
             #if detect_success is True:
