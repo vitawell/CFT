@@ -312,6 +312,8 @@ def test(data,
                 for box in boxes:
                     cv2.rectangle(im0, (int(box[0]), int(box[1])), (int(box[2]), int(box[3])), (0,0,255), 3)
                 detect_success = True
+            else:
+                boxes, scores, labels = np.zeros((0, 4)), np.zeros((0,)), np.zeros((0,))
             p_boxes, p_scores, p_labels = boxes, scores, labels
             # Result visualization
             #if detect_success is True:
