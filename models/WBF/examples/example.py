@@ -39,7 +39,7 @@ def show_boxes(boxes_list, scores_list, labels_list, image_size=800):
             cv2.rectangle(image, (x1, y1), (x2, y2), color_list[i][lbl], int(thickness * scores_list[i][j]))
     show_image(image)
 
-def example_wbf_2_models(det1, det2, det3, img, iou_thr=0.55, draw_image=True):
+def example_wbf_3_models(det1, det2, det3, img, iou_thr=0.55, draw_image=True):
     if len(img.shape)==3:
         img_height, img_width = img.shape[0:2]
         ##
