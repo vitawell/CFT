@@ -259,6 +259,7 @@ def test(data,
                 
                 
         ## 2个模型
+        ## zip将迭代元素打包成元组，若长度不一舍去长的部分。
         for si, (im0, model2_dets, model1_dets) in enumerate(zip(img_rgb, model3_out, model2_out)):
             #
             #print(im0.shape)  #用img torch.Size([6, 384, 672])
