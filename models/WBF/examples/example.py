@@ -39,6 +39,50 @@ def show_boxes(boxes_list, scores_list, labels_list, image_size=800):
             cv2.rectangle(image, (x1, y1), (x2, y2), color_list[i][lbl], int(thickness * scores_list[i][j]))
     show_image(image)
 
+def example_wbf_2_models(det1, det2, det3, img, iou_thr=0.55, draw_image=True):
+    if len(img.shape)==3:
+        img_height, img_width = img.shape[0:2]
+        ##
+        #print(img_height)  #
+        #print(img_width)  #
+    elif len(img.shape) == 4:
+        img_height, img_width = img.shape[1:3]
+
+    # normalize
+    det1[:,0] /= img_width
+    det1[:,2] /= img_width
+    det1[:,1] /= img_height
+    det1[:,3] /= img_height
+
+    det2[:,0] /= img_width
+    det2[:,2] /= img_width
+    det2[:,1] /= img_height
+    det2[:,3] /= img_height
+    
+    det3[:,0] /= img_width
+    det3[:,2] /= img_width
+    det3[:,1] /= img_height
+    det3[:,3] /= img_height
+
+    # Arrange datas
+    det1_boxes = np.array(det1[:,:4])
+    det2_boxes = np.array(det2[:,:4])
+    det3_boxes = np.array(det2[:,:4])
+    det1_score = np.array(det1[:,4])
+    det2_score = np.array(det2[:,4])
+    det3_score = np.array(det2[:,4])
+    det1_class = np.array(det1[:,5])
+    det2_class = np.array(det2[:,5])
+    det3_class = np.array(det2[:,5])
+
+    boxes_list = [det1_boxes, det2_boxes, det3_boxes]
+    scores_list = [det1_score, det2_score, det3_score]
+    labels_list = [det1_class, det2_class, det3_class]
+    weights = [1, 1, 1]
+
+    boxes, scores, labels = weighted_boxes_fusion(boxes_list, scores_list, labels_list, weights=weights, iou_thr=iou_thr, skip_box_thr=0.0)
+
+    return boxes, scores, labels
 
 def example_wbf_2_models(det1, det2, img, iou_thr=0.55, draw_image=True):
     """
