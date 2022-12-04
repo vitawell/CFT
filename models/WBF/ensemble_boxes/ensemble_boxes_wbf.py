@@ -84,8 +84,9 @@ def prefilter_boxes(boxes, scores, labels, weights, thr):
             if y2 > 1:
                 warnings.warn('Y2 > 1 in box. Set it to 1. Check that you normalize boxes in [0, 1] range.')
                 y2 = 1
-            if (x2 - x1) * (y2 - y1) == 0.0:  #框面积为0
-                warnings.warn("Zero area box skipped: {}.".format(box_part))  #如果没有归一化到[0, 1]，也会导致此警告
+            if (x2 - x1) * (y2 - y1) == 0.0:  #框面积为0 #如果没有归一化到[0, 1]，也会导致此警告
+                ##警告太多？nms不会去掉空框？
+                #warnings.warn("Zero area box skipped: {}.".format(box_part))  
                 continue
 
             # [label, score, weight, model index, x1, y1, x2, y2]
