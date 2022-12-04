@@ -804,14 +804,27 @@ def train_rgb_ir(hyp, opt, device, tb_writer=None):
                 #print(len(pred)) #len=3
                 #print(len(pred[0])) #len=3
                 #print(pred[0][0].shape) #torch.Size([8, 3, 80, 80, 21])
-                for j in range(3): #3个特征图
-                    for k in range(1,len(pred)):
-                        pred[0][j]=torch.cat((pred[0][j],pred[k][j]),1) #第1维test map为0?
-                pred = pred[0] #将三个detect结果concat
+                
+                #for j in range(3): #3个特征图
+                    #for k in range(1,len(pred)): #concat pred1和pred2
+                        #pred[0][j]=torch.cat((pred[0][j],pred[k][j]),1) #第1维test map为0?
+                #pred = pred[0] #将三个detect结果concat
                 #print(len(pred)) #len=3
                 #print(pred[0].shape) #torch.Size([8, 9, 80, 80, 21])
                 
-                loss, loss_items = compute_loss(pred, targets.to(device))  # loss scaled by batch_size
+                ##
+                pred1 = pred[0]
+                pred2 = pred[1]
+                pred3 = pred[2]
+                
+                #loss, loss_items = compute_loss(pred, targets.to(device))  # loss scaled by batch_size
+                
+                loss1, loss_items1 = compute_loss(pred1, targets.to(device))
+                loss2, loss_items2 = compute_loss(pred2, targets.to(device))
+                loss3, loss_items3 = compute_loss(pred3, targets.to(device))
+                loss = loss1 * 0.2 + loss2 * 0.3 + loss3 * 0.5
+                loss_items = loss_items1* 0.2 + loss_items2 * 0.3 + loss_items3 * 0.5
+                
                 if rank != -1:
                     loss *= opt.world_size  # gradient averaged between devices in DDP mode
                 if opt.quad:
