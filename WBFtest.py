@@ -284,62 +284,62 @@ def test(data,
                
                 
                 
-        ## 2个模型
-        ## zip将迭代元素打包成元组，若长度不一舍去长的部分。
-        for si, (im0, model2_dets, model1_dets) in enumerate(zip(img_rgb, model3_out, model2_out)):
-            #
-            #print(im0.shape)  #用img torch.Size([6, 384, 672])
-            #用img_rgb torch.Size([3, 384, 672])
-            im0 = im0.detach().cpu().numpy() * 255
-            im0 = im0.transpose((1,2,0)).astype(np.uint8).copy()
-            #print(im0.shape)  #(384, 672, 3)
-            #后面example_wbf_1_models里面 img_height, img_width = img.shape[1:]
+#         ## 2个模型
+#         ## zip将迭代元素打包成元组，若长度不一舍去长的部分。
+#         for si, (im0, model2_dets, model1_dets) in enumerate(zip(img_rgb, model3_out, model2_out)):
+#             #
+#             #print(im0.shape)  #用img torch.Size([6, 384, 672])
+#             #用img_rgb torch.Size([3, 384, 672])
+#             im0 = im0.detach().cpu().numpy() * 255
+#             im0 = im0.transpose((1,2,0)).astype(np.uint8).copy()
+#             #print(im0.shape)  #(384, 672, 3)
+#             #后面example_wbf_1_models里面 img_height, img_width = img.shape[1:]
             
-            #model2为空?
-            if len(model2_dets):  #若model2不为空
-                #scale_coords将坐标coords(x1y1x2y2)从img_shape缩放到im0_shape尺寸（尺寸一致）
-                model2_dets[:, :4] = scale_coords(img.shape[2:], model2_dets[:, :4], im0.shape).round()
-                ##归一化坐标到[0,1]，后面example_wbf_2_models里面会归一化
-                ##为什么坐标会超过1？
-                #model2_dets[:, 0],  model2_dets[:, 2] = model2_dets[:, 0]/ width,  model2_dets[:, 2]/ width
-                #model2_dets[:, 1],  model2_dets[:, 3] = model2_dets[:, 0]/ height,  model2_dets[:, 2]/ height
+#             #model2为空?
+#             if len(model2_dets):  #若model2不为空
+#                 #scale_coords将坐标coords(x1y1x2y2)从img_shape缩放到im0_shape尺寸（尺寸一致）
+#                 model2_dets[:, :4] = scale_coords(img.shape[2:], model2_dets[:, :4], im0.shape).round()
+#                 ##归一化坐标到[0,1]，后面example_wbf_2_models里面会归一化
+#                 ##为什么坐标会超过1？
+#                 #model2_dets[:, 0],  model2_dets[:, 2] = model2_dets[:, 0]/ width,  model2_dets[:, 2]/ width
+#                 #model2_dets[:, 1],  model2_dets[:, 3] = model2_dets[:, 0]/ height,  model2_dets[:, 2]/ height
 
-            if len(model1_dets):
-                model1_dets[:, :4] = scale_coords(img.shape[2:], model1_dets[:, :4], im0.shape).round()
-                #model1_dets[:, 0],  model1_dets[:, 2] = model1_dets[:, 0]/ width,  model1_dets[:, 2]/ width
-                #model1_dets[:, 1],  model1_dets[:, 3] = model1_dets[:, 0]/ height,  model1_dets[:, 2]/ height
+#             if len(model1_dets):
+#                 model1_dets[:, :4] = scale_coords(img.shape[2:], model1_dets[:, :4], im0.shape).round()
+#                 #model1_dets[:, 0],  model1_dets[:, 2] = model1_dets[:, 0]/ width,  model1_dets[:, 2]/ width
+#                 #model1_dets[:, 1],  model1_dets[:, 3] = model1_dets[:, 0]/ height,  model1_dets[:, 2]/ height
             
-            # Flag for indicating detection success 检测成功标志
-            detect_success = False
+#             # Flag for indicating detection success 检测成功标志
+#             detect_success = False
             
              
-            #print(len(model2_dets))  #0?  #model2为空?
-            #print(len(model1_dets))  #1
+#             #print(len(model2_dets))  #0?  #model2为空?
+#             #print(len(model1_dets))  #1
                 
-            if len(model2_dets)>0 and len(model1_dets)>0:
-                boxes, scores, labels = example_wbf_2_models(model2_dets.detach().cpu().numpy(), model1_dets.detach().cpu().numpy(), im0)
-                #通过im0获取图片width、height
-                boxes[:,0], boxes[:,2] = boxes[:,0] * width, boxes[:,2] * width
-                boxes[:,1], boxes[:,3] = boxes[:,1] * height, boxes[:,3] * height
-                for box in boxes:
-                    cv2.rectangle(im0, (int(box[0]), int(box[1])), (int(box[2]), int(box[3])), (0,0,255), 3)
-                detect_success = True
-            elif len(model2_dets)>0:
-                boxes, scores, labels = example_wbf_1_model(model2_dets.detach().cpu().numpy(), im0)
-                boxes[:,0], boxes[:,2] = boxes[:,0] * width, boxes[:,2] * width
-                boxes[:,1], boxes[:,3] = boxes[:,1] * height, boxes[:,3] * height
-                for box in boxes:
-                    cv2.rectangle(im0, (int(box[0]), int(box[1])), (int(box[2]), int(box[3])), (0,0,255), 3)
-                detect_success = True
-            elif len(model1_dets)>0:
-                boxes, scores, labels = example_wbf_1_model(model1_dets.detach().cpu().numpy(), im0)
-                boxes[:,0], boxes[:,2] = boxes[:,0] * width, boxes[:,2] * width
-                boxes[:,1], boxes[:,3] = boxes[:,1] * height, boxes[:,3] * height
-                for box in boxes:
-                    cv2.rectangle(im0, (int(box[0]), int(box[1])), (int(box[2]), int(box[3])), (0,0,255), 3)
-                detect_success = True
-            else: ##没有时返回0
-                boxes, scores, labels = np.zeros((0, 4)), np.zeros((0,)), np.zeros((0,))
+#             if len(model2_dets)>0 and len(model1_dets)>0:
+#                 boxes, scores, labels = example_wbf_2_models(model2_dets.detach().cpu().numpy(), model1_dets.detach().cpu().numpy(), im0)
+#                 #通过im0获取图片width、height
+#                 boxes[:,0], boxes[:,2] = boxes[:,0] * width, boxes[:,2] * width
+#                 boxes[:,1], boxes[:,3] = boxes[:,1] * height, boxes[:,3] * height
+#                 for box in boxes:
+#                     cv2.rectangle(im0, (int(box[0]), int(box[1])), (int(box[2]), int(box[3])), (0,0,255), 3)
+#                 detect_success = True
+#             elif len(model2_dets)>0:
+#                 boxes, scores, labels = example_wbf_1_model(model2_dets.detach().cpu().numpy(), im0)
+#                 boxes[:,0], boxes[:,2] = boxes[:,0] * width, boxes[:,2] * width
+#                 boxes[:,1], boxes[:,3] = boxes[:,1] * height, boxes[:,3] * height
+#                 for box in boxes:
+#                     cv2.rectangle(im0, (int(box[0]), int(box[1])), (int(box[2]), int(box[3])), (0,0,255), 3)
+#                 detect_success = True
+#             elif len(model1_dets)>0:
+#                 boxes, scores, labels = example_wbf_1_model(model1_dets.detach().cpu().numpy(), im0)
+#                 boxes[:,0], boxes[:,2] = boxes[:,0] * width, boxes[:,2] * width
+#                 boxes[:,1], boxes[:,3] = boxes[:,1] * height, boxes[:,3] * height
+#                 for box in boxes:
+#                     cv2.rectangle(im0, (int(box[0]), int(box[1])), (int(box[2]), int(box[3])), (0,0,255), 3)
+#                 detect_success = True
+#             else: ##没有时返回0
+#                 boxes, scores, labels = np.zeros((0, 4)), np.zeros((0,)), np.zeros((0,))
             
             ###
             p_boxes, p_scores, p_labels = boxes, scores, labels
