@@ -18,6 +18,9 @@
 使用WBF，增加models/WBF，train调用test替换为WBFtest.py，
 修改WBF/ensemble_boxes/ensemble_boxes_wbf.py中面积为0的框跳过。
 
+修改WBF/examples/example.py增加3个模型融合，修改WBFtest.py增加3个模型融合。
+
+
 
 ## CFT
 CFT修改了模型yolo.py，改为models/yolo_test.py，加载数据时若输入为-4则表示输入为第二个模态。
