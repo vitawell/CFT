@@ -52,7 +52,7 @@ def test(data,
          batch_size=32,
          imgsz=640,
          conf_thres=0.001,
-         iou_thres=0.6,  # for NMS
+         iou_thres=0.45,  # for NMS  #0.6 --0.45
          save_json=False,
          single_cls=False,
          augment=False,
