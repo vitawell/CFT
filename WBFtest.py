@@ -239,6 +239,7 @@ def test(data,
             #detect_success = False
             
             if len(model3_dets)>0 and len(model2_dets)>0 and len(model1_dets)>0:
+                #print(333)
                 boxes, scores, labels = example_wbf_3_models(model3_dets.detach().cpu().numpy(), model2_dets.detach().cpu().numpy(), model1_dets.detach().cpu().numpy(), im0)
                 boxes[:,0], boxes[:,2] = boxes[:,0] * width, boxes[:,2] * width
                 boxes[:,1], boxes[:,3] = boxes[:,1] * height, boxes[:,3] * height
