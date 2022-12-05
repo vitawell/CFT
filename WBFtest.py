@@ -240,7 +240,7 @@ def test(data,
             
             if len(model3_dets)>0 and len(model2_dets)>0 and len(model1_dets)>0:
                 #print(333)  
-                ##example_wbf_3_models默认iou_thr=0.55，改为开头设置的iou_thres
+                ##example_wbf_3_models默认iou_thr=0.55，大于该值的框才融合？改为开头设置的iou_thres？
                 boxes, scores, labels = example_wbf_3_models(model3_dets.detach().cpu().numpy(), model2_dets.detach().cpu().numpy(), model1_dets.detach().cpu().numpy(), im0, iou_thr=iou_thres)
                 boxes[:,0], boxes[:,2] = boxes[:,0] * width, boxes[:,2] * width
                 boxes[:,1], boxes[:,3] = boxes[:,1] * height, boxes[:,3] * height
