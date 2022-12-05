@@ -210,7 +210,7 @@ def test(data,
             #print(len(model2_out))  #16
             #print(len(model3_out))  #16
             
-            model2_out = model2_out + model1_out
+            #model2_out = model2_out + model1_out
             #print(len(model2_out))  #32!
             
 
