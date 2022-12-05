@@ -239,38 +239,39 @@ def test(data,
             #detect_success = False
             
             if len(model3_dets)>0 and len(model2_dets)>0 and len(model1_dets)>0:
-                #print(333)
-                boxes, scores, labels = example_wbf_3_models(model3_dets.detach().cpu().numpy(), model2_dets.detach().cpu().numpy(), model1_dets.detach().cpu().numpy(), im0)
+                #print(333)  
+                ##example_wbf_3_models默认iou_thr=0.55，改为开头设置的iou_thres
+                boxes, scores, labels = example_wbf_3_models(model3_dets.detach().cpu().numpy(), model2_dets.detach().cpu().numpy(), model1_dets.detach().cpu().numpy(), im0, iou_thr=iou_thres)
                 boxes[:,0], boxes[:,2] = boxes[:,0] * width, boxes[:,2] * width
                 boxes[:,1], boxes[:,3] = boxes[:,1] * height, boxes[:,3] * height
                 
             elif len(model3_dets)>0 and len(model2_dets)>0:
-                boxes, scores, labels = example_wbf_2_models(model3_dets.detach().cpu().numpy(), model2_dets.detach().cpu().numpy(), im0)
+                boxes, scores, labels = example_wbf_2_models(model3_dets.detach().cpu().numpy(), model2_dets.detach().cpu().numpy(), im0, iou_thr=iou_thres)
                 boxes2[:,0], boxes2[:,2] = boxes[:,0] * width, boxes[:,2] * width
                 boxes2[:,1], boxes2[:,3] = boxes[:,1] * height, boxes[:,3] * height
                 
             elif len(model3_dets)>0 and len(model1_dets)>0:
-                boxes, scores, labels = example_wbf_2_models(model3_dets.detach().cpu().numpy(), model1_dets.detach().cpu().numpy(), im0)
+                boxes, scores, labels = example_wbf_2_models(model3_dets.detach().cpu().numpy(), model1_dets.detach().cpu().numpy(), im0, iou_thr=iou_thres)
                 boxes[:,0], boxes[:,2] = boxes[:,0] * width, boxes[:,2] * width
                 boxes[:,1], boxes[:,3] = boxes[:,1] * height, boxes[:,3] * height
             
             elif len(model2_dets)>0 and len(model1_dets)>0:
-                boxes, scores, labels = example_wbf_2_models(model2_dets.detach().cpu().numpy(), model1_dets.detach().cpu().numpy(), im0)
+                boxes, scores, labels = example_wbf_2_models(model2_dets.detach().cpu().numpy(), model1_dets.detach().cpu().numpy(), im0, iou_thr=iou_thres)
                 boxes[:,0], boxes[:,2] = boxes[:,0] * width, boxes[:,2] * width
                 boxes[:,1], boxes[:,3] = boxes[:,1] * height, boxes[:,3] * height
                 
             elif len(model3_dets)>0:
-                boxes, scores, labels = example_wbf_1_model(model3_dets.detach().cpu().numpy(), im0)
+                boxes, scores, labels = example_wbf_1_model(model3_dets.detach().cpu().numpy(), im0, iou_thr=iou_thres)
                 boxes[:,0], boxes[:,2] = boxes[:,0] * width, boxes[:,2] * width
                 boxes[:,1], boxes[:,3] = boxes[:,1] * height, boxes[:,3] * height
                 
             elif len(model2_dets)>0:
-                boxes, scores, labels = example_wbf_1_model(model2_dets.detach().cpu().numpy(), im0)
+                boxes, scores, labels = example_wbf_1_model(model2_dets.detach().cpu().numpy(), im0, iou_thr=iou_thres)
                 boxes[:,0], boxes[:,2] = boxes[:,0] * width, boxes[:,2] * width
                 boxes[:,1], boxes[:,3] = boxes[:,1] * height, boxes[:,3] * height
                 
             elif len(model1_dets)>0:
-                boxes, scores, labels = example_wbf_1_model(model1_dets.detach().cpu().numpy(), im0)
+                boxes, scores, labels = example_wbf_1_model(model1_dets.detach().cpu().numpy(), im0, iou_thr=iou_thres)
                 boxes[:,0], boxes[:,2] = boxes[:,0] * width, boxes[:,2] * width
                 boxes[:,1], boxes[:,3] = boxes[:,1] * height, boxes[:,3] * height
                 
