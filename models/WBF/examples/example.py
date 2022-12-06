@@ -80,8 +80,9 @@ def example_wbf_3_models(det1, det2, det3, img, iou_thr=0.55, draw_image=True):
     labels_list = [det1_class, det2_class, det3_class]
     # weights 后面乘以 score
     weights = [0.5, 0.8, 1]
-
-    boxes, scores, labels = weighted_boxes_fusion(boxes_list, scores_list, labels_list, weights=weights, iou_thr=iou_thr, skip_box_thr=0.0)
+    
+    #'avg': average value, 'max': maximum value #conf_type='max'
+    boxes, scores, labels = weighted_boxes_fusion(boxes_list, scores_list, labels_list, weights=weights, iou_thr=iou_thr, skip_box_thr=0.0, conf_type='max')
 
     return boxes, scores, labels
 
