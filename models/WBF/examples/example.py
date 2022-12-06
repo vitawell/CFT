@@ -123,7 +123,7 @@ def example_wbf_2_models(det1, det2, img, iou_thr=0.55, draw_image=True):
     labels_list = [det1_class, det2_class]
     weights = [1, 1]
 
-    boxes, scores, labels = weighted_boxes_fusion(boxes_list, scores_list, labels_list, weights=weights, iou_thr=iou_thr, skip_box_thr=0.0)
+    boxes, scores, labels = weighted_boxes_fusion(boxes_list, scores_list, labels_list, weights=weights, iou_thr=iou_thr, skip_box_thr=0.0, conf_type='max')
 
     return boxes, scores, labels
 
@@ -153,7 +153,7 @@ def example_wbf_1_model(det1, img, iou_thr=0.55, draw_image=True):
     labels_list = np.array(det1[:,5])
 
 
-    boxes, scores, labels = weighted_boxes_fusion([boxes_list], [scores_list], [labels_list], weights=None, iou_thr=iou_thr, skip_box_thr=0.0)
+    boxes, scores, labels = weighted_boxes_fusion([boxes_list], [scores_list], [labels_list], weights=None, iou_thr=iou_thr, skip_box_thr=0.0, conf_type='max')
 
     return boxes, scores, labels
 
