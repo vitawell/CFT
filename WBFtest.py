@@ -238,6 +238,7 @@ def test(data,
             # Flag for indicating detection success 检测成功标志
             #detect_success = False
             
+            iou_thres = 0.55
             if len(model3_dets)>0 and len(model2_dets)>0 and len(model1_dets)>0:
                 #print(333)  
                 ##example_wbf_3_models默认iou_thr=0.55，大于该值的框才融合？改为开头设置的iou_thres？
