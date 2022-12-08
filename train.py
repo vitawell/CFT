@@ -817,13 +817,19 @@ def train_rgb_ir(hyp, opt, device, tb_writer=None):
                 ### 分别计算loss？
                 pred1 = pred[0]
                 pred2 = pred[1]
+                #
                 pred3 = pred[2]
                 
                 loss1, loss_items1 = compute_loss(pred1, targets.to(device))
                 loss2, loss_items2 = compute_loss(pred2, targets.to(device))
+                #
                 loss3, loss_items3 = compute_loss(pred3, targets.to(device))
+                
                 loss = loss1 * 0.2 + loss2 * 0.3 + loss3 * 0.5
                 loss_items = loss_items1* 0.2 + loss_items2 * 0.3 + loss_items3 * 0.5
+                
+                #loss = loss1 * 0.5 + loss2 * 0.5
+                #loss_items = loss_items1* 0.5 + loss_items2 * 0.5
                 
                 ###
                 if rank != -1:
