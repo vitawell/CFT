@@ -544,8 +544,10 @@ def test(data,
     #      6: val_cls_loss [1] 验证集分类损失
     # maps: [80] 所有类别的mAP@0.5:0.95
     # t: {tuple: 3} 0: 打印前向传播耗费的总时间   1: nms耗费总时间   2: 总时间
-    return (mp, mr, map50, map75, map, *(loss.cpu() / len(dataloader)).tolist()), maps, t
-
+    
+    #return (mp, mr, map50, map75, map, *(loss.cpu() / len(dataloader)).tolist()), maps, t
+    ##bug
+    return (mp, mr, map50, map75, map, *(np.array(torch.tensor(loss, device='cpu')) / len(dataloader)).tolist()), maps, t
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(prog='test.py')
