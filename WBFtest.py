@@ -155,7 +155,8 @@ def test(data,
             
             #out, train_out = model(img_rgb, img_ir, augment=augment)  # inference and training outputs
             
-            out1, dout = model(img_rgb, img_ir, augment=augment)  #改为只dout，pred=dout[-1]
+            out1, dout = model(img_rgb, img_ir, augment=augment)  
+            #out1为最后一个detect，dout为所有detect
             ##
             #3个元组 #3detect
             out = []  ##推理out
@@ -165,13 +166,13 @@ def test(data,
                 #out[0]=torch.cat((out[0],out[k]),1) 
             #out = out[0] #将三个detect结果concat
             
-            train_out = []  ##训练train_out
-            for k in range(0,len(dout)):
-                train_out.append(dout[k][1])
-            for j in range(3): #3个特征图
-                for k in range(1,len(dout)):
-                    train_out[0][j]=torch.cat((train_out[0][j],train_out[k][j]),1)           
-            train_out = train_out[0] #将三个detect结果concat
+#             train_out = []  ##训练train_out
+#             for k in range(0,len(dout)):
+#                 train_out.append(dout[k][1])
+#             for j in range(3): #3个特征图
+#                 for k in range(1,len(dout)):
+#                     train_out[0][j]=torch.cat((train_out[0][j],train_out[k][j]),1)           
+#             train_out = train_out[0] #将三个detect结果concat
             
             
             ## Inference
@@ -184,15 +185,32 @@ def test(data,
             #print(len(model1_out))  #16
             #print(len(model2_out))  #16
             #print(len(model3_out))  #16
-
             
             t0 += time_synchronized() - t  #模型时间
 
-            # 计算验证损失
-            # compute_loss不为空 说明正在执行train.py  根据传入的compute_loss计算损失值
-            if compute_loss:
-                loss += compute_loss([x.float() for x in train_out], targets)[1][:3]  # box, obj, cls
+#             # 计算验证损失
+#             # compute_loss不为空 说明正在执行train.py  根据传入的compute_loss计算损失值
+#             if compute_loss:
+#                 loss += compute_loss([x.float() for x in train_out], targets)[1][:3]  # box, obj, cls
+            
+            train_out = []  ##训练train_out
+            for k in range(0,len(dout)):
+                train_out.append(dout[k][1])
+                
+            loss_items1 = compute_loss([x.float() for x in train_out[0]], targets.to(device))[1][:3]
+            loss_items2 = compute_loss([x.float() for x in train_out[1]], targets.to(device))[1][:3]
+            #
+            loss_items3 = compute_loss([x.float() for x in train_out[2]], targets.to(device))[1][:3]
+            
+            loss = []
+            #list元素相加
+            for m,n,l in zip(loss_items1,loss_items2, loss_items3):
+                loss_items= m *0.2 + n *0.3 + l* 0.5
+                loss.append(loss_items)
 
+            #loss = loss_items1 * 0.2 + loss_items2 * 0.3 + loss_items3 * 0.5
+                
+            
             # Run NMS
             # 将真实框target的xywh(因为target是在labelimg中做了归一化的)映射到img(test)尺寸
             targets[:, 2:] *= torch.Tensor([width, height, width, height]).to(device)  # to pixels
