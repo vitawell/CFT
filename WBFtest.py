@@ -202,13 +202,13 @@ def test(data,
             #
             loss_items3 = compute_loss([x.float() for x in train_out[2]], targets.to(device))[1][:3]
             
-            loss = []
-            #list元素相加
-            for m,n,l in zip(loss_items1,loss_items2, loss_items3):
-                loss_items= m *0.2 + n *0.3 + l* 0.5
-                loss.append(loss_items)
+            #loss = []
+            ##list元素相加
+            #for m,n,l in zip(loss_items1,loss_items2, loss_items3):
+                #loss_items= m *0.2 + n *0.3 + l* 0.5
+                #loss.append(loss_items)
 
-            #loss = loss_items1 * 0.2 + loss_items2 * 0.3 + loss_items3 * 0.5
+            loss = loss_items1 * 0.4 + loss_items2 * 0.2 + loss_items3 * 0.4
                 
             
             # Run NMS
@@ -545,9 +545,9 @@ def test(data,
     # maps: [80] 所有类别的mAP@0.5:0.95
     # t: {tuple: 3} 0: 打印前向传播耗费的总时间   1: nms耗费总时间   2: 总时间
     
-    #return (mp, mr, map50, map75, map, *(loss.cpu() / len(dataloader)).tolist()), maps, t
-    ##bug
-    return (mp, mr, map50, map75, map, *(np.array(torch.tensor(loss, device='cpu')) / len(dataloader)).tolist()), maps, t
+    return (mp, mr, map50, map75, map, *(loss.cpu() / len(dataloader)).tolist()), maps, t
+    ##若loss用list添加出现bug
+    ##return (mp, mr, map50, map75, map, *(np.array(torch.tensor(loss, device='cpu')) / len(dataloader)).tolist()), maps, t
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(prog='test.py')
