@@ -10,8 +10,10 @@
 
 输出train.py中计算best map的epoch，修改utils/metrics.py中的fitness模块权重。
 
+##
 使用soft-nms，修改了utils/general.py，增加模块my_soft_nms，修改模块non_max_suppression中使用nms为使用my_soft_nms。
 
+##
 修改models/yolo_test.py，dout为几个detect层的输出.
 需要相应修改train、test、detect_twostream
 
@@ -26,7 +28,7 @@
 
 ##
 修改utils/datasets.py中添加加载3个模态数据
-修改train.py中记载数据
+修改train.py中加载数据，修改models/yolo_test.py
 
 
 ## CFT
