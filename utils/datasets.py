@@ -257,7 +257,42 @@ def create_dataloader_rgb_ir(path1, path2,  imgsz, batch_size, stride, opt, hyp=
 
     return dataloader, dataset
 
+# 加载3模态数据 ==============================
+def create_dataloader_3(path1, path2, path3, imgsz, batch_size, stride, opt, hyp=None, augment=False, cache=False, pad=0.0, rect=False,
+                      rank=-1, world_size=1, workers=8, image_weights=False, quad=False, prefix='', sampler=None):
+    # Make sure only the first process in DDP process the dataset first, and the following others can use the cache
+    with torch_distributed_zero_first(rank):
+        dataset = Load3ModalImagesAndLabels(path1, path2, path3, imgsz, batch_size,
+                                      augment=augment,  # augment images
+                                      hyp=hyp,  # augmentation hyperparameters
+                                      rect=rect,  # rectangular training
+                                      cache_images=cache,
+                                      single_cls=opt.single_cls,
+                                      stride=int(stride),
+                                      pad=pad,
+                                      image_weights=image_weights,
+                                      prefix=prefix)
 
+    batch_size = min(batch_size, len(dataset))
+    nw = min([os.cpu_count() // world_size, batch_size if batch_size > 1 else 0, workers])  # number of workers
+    sampler = torch.utils.data.distributed.DistributedSampler(dataset) if rank != -1 else None
+    loader = torch.utils.data.DataLoader if image_weights else InfiniteDataLoader
+
+
+    # global_var.set_value('s', torch.randperm(len(dataset)).tolist())
+    # sampler = RandomSampler(dataset)
+
+    # sampler = torch.utils.data.sampler.RandomSampler(dataset)
+
+    # Use torch.utils.data.DataLoader() if dataset.properties will update during training else InfiniteDataLoader()
+    dataloader = loader(dataset,
+                        batch_size=batch_size,
+                        num_workers=nw,
+                        sampler=sampler,
+                        pin_memory=True,
+                        collate_fn=LoadImagesAndLabels.collate_fn4 if quad else LoadImagesAndLabels.collate_fn)
+
+    return dataloader, dataset
 
 
 
@@ -1314,6 +1349,534 @@ class LoadMultiModalImagesAndLabels(Dataset):  # for training/testing
 
         return torch.stack(img4, 0), torch.cat(label4, 0), path4, shapes4
 
+    
+    
+class Load3ModalImagesAndLabels(Dataset):  # for training/testing
+    """
+    载入3模态数据 
+    """
+    def __init__(self, path_rgb, path_ir, path_3, img_size=640, batch_size=16, augment=False, hyp=None, rect=False, image_weights=False,
+                 cache_images=False, single_cls=False, stride=32, pad=0.0, prefix=''):
+        self.img_size = img_size
+        self.augment = augment
+        self.hyp = hyp
+        self.image_weights = image_weights
+        self.rect = False if image_weights else rect
+        self.mosaic = self.augment and not self.rect  # load 4 images at a time into a mosaic (only during training)
+        self.mosaic_border = [-img_size // 2, -img_size // 2]
+        self.stride = stride
+        self.path_rgb = path_rgb
+        self.path_ir = path_ir
+        self.path_3 = path_3
+
+        try:
+            f_rgb = []  # image files
+            f_ir = []
+            f_3 = []
+            # -----------------------------  rgb   -----------------------------
+            for p_rgb in path_rgb if isinstance(path_rgb, list) else [path_rgb]:
+                p_rgb = Path(p_rgb)  # os-agnostic
+                if p_rgb.is_dir():  # dir
+                    f_rgb += glob.glob(str(p_rgb / '**' / '*.*'), recursive=True)
+                    # f = list(p.rglob('**/*.*'))  # pathlib
+                elif p_rgb.is_file():  # file
+                    with open(p_rgb, 'r') as t:
+                        t = t.read().strip().splitlines()
+                        parent = str(p_rgb.parent) + os.sep
+                        f_rgb += [x.replace('./', parent) if x.startswith('./') else x for x in t]  # local to global path
+                        # f += [p.parent / x.lstrip(os.sep) for x in t]  # local to global path (pathlib)
+                else:
+                    raise Exception(f'{prefix}{path_rgb} does not exist')
+
+                # -----------------------------  ir   -----------------------------
+                for p_ir in path_ir if isinstance(path_ir, list) else [path_ir]:
+                    p_ir = Path(p_ir)  # os-agnostic
+                    if p_ir.is_dir():  # dir
+                        f_ir += glob.glob(str(p_ir / '**' / '*.*'), recursive=True)
+                        # f = list(p.rglob('**/*.*'))  # pathlib
+                    elif p_ir.is_file():  # file
+                        with open(p_ir, 'r') as t:
+                            t = t.read().strip().splitlines()
+                            parent = str(p_ir.parent) + os.sep
+                            f_ir += [x.replace('./', parent) if x.startswith('./') else x for x in
+                                      t]  # local to global path
+                            # f += [p.parent / x.lstrip(os.sep) for x in t]  # local to global path (pathlib)
+                    else:
+                        raise Exception(f'{prefix}{p_ir} does not exist')
+                        
+                    # -----------------------------  3   -----------------------------
+                    for p_3 in path_3 if isinstance(path_3, list) else [path_3]:
+                        p_3 = Path(p_3)  # os-agnostic
+                        if p_3.is_dir():  # dir
+                            f_3 += glob.glob(str(p_3 / '**' / '*.*'), recursive=True)
+                            # f = list(p.rglob('**/*.*'))  # pathlib
+                        elif p_3.is_file():  # file
+                            with open(p_3, 'r') as t:
+                                t = t.read().strip().splitlines()
+                                parent = str(p_3.parent) + os.sep
+                                f_3 += [x.replace('./', parent) if x.startswith('./') else x for x in
+                                        t]  # local to global path
+                                # f += [p.parent / x.lstrip(os.sep) for x in t]  # local to global path (pathlib)
+                        else:
+                            raise Exception(f'{prefix}{p_3} does not exist')
+
+            self.img_files_rgb = sorted([x.replace('/', os.sep) for x in f_rgb if x.split('.')[-1].lower() in img_formats])
+            self.img_files_ir = sorted([x.replace('/', os.sep) for x in f_ir if x.split('.')[-1].lower() in img_formats])
+            self.img_files_3 = sorted([x.replace('/', os.sep) for x in f_3 if x.split('.')[-1].lower() in img_formats])
+            
+            # self.img_files = sorted([x for x in f if x.suffix[1:].lower() in img_formats])  # pathlib
+            assert (self.img_files_rgb, self.img_files_ir, self.img_files_3), (f'{prefix}No images found', f'{prefix}No images found')
+        except Exception as e:
+            raise Exception(f'{prefix}Error loading data from {path_rgb,path_ir,path_3}: {e}\nSee {help_url}')
+
+
+        # Check cache
+        # Check rgb cache
+        self.label_files_rgb = img2label_paths(self.img_files_rgb)  # labels
+        # print(self.label_files)
+        cache_rgb_path = (p_rgb if p_rgb.is_file() else Path(self.label_files_rgb[0]).parent).with_suffix('.cache')  # cached labels
+        if cache_rgb_path.is_file():
+            cache_rgb, exists_rgb = torch.load(cache_rgb_path), True  # load
+            if cache_rgb['hash'] != get_hash(self.label_files_rgb + self.img_files_rgb) or 'version' not in cache_rgb:  # changed
+                cache_rgb, exists_rgb = self.cache_labels(self.img_files_rgb,self.label_files_rgb,
+                                                          cache_rgb_path, prefix), False  # re-cache
+        else:
+            cache_rgb, exists_rgb = self.cache_labels(self.img_files_rgb,self.label_files_rgb,
+                                                      cache_rgb_path, prefix), False  # cache
+
+        # Check ir cache
+        self.label_files_ir = img2label_paths(self.img_files_ir)  # labels
+        # print(self.label_files)
+        cache_ir_path = (p_ir if p_ir.is_file() else Path(self.label_files_ir[0]).parent).with_suffix('.cache')  # cached labels
+        if cache_ir_path.is_file():
+            cache_ir, exists_ir = torch.load(cache_ir_path), True  # load
+            if cache_ir['hash'] != get_hash(self.label_files_ir + self.img_files_ir) or 'version' not in cache_ir:  # changed
+                cache_ir, exists_ir = self.cache_labels(self.img_files_ir, self.label_files_ir,
+                                                        cache_ir_path, prefix), False  # re-cache
+        else:
+            cache_ir, exists_ir = self.cache_labels(self.img_files_ir, self.label_files_ir,
+                                                    cache_ir_path, prefix), False  # cache
+            
+        # Check 3 cache
+        self.label_files_3 = img2label_paths(self.img_files_3)  # labels
+        # print(self.label_files)
+        cache_3_path = (p_3 if p_3.is_file() else Path(self.label_files_3[0]).parent).with_suffix('.cache')  # cached labels
+        if cache_3_path.is_file():
+            cache_3, exists_3 = torch.load(cache_3_path), True  # load
+            if cache_3['hash'] != get_hash(self.label_files_3 + self.img_files_3) or 'version' not in cache_3:  # changed
+                cache_3, exists_3 = self.cache_labels(self.img_files_3, self.label_files_3,
+                                                        cache_3_path, prefix), False  # re-cache
+        else:
+            cache_3, exists_3 = self.cache_labels(self.img_files_3, self.label_files_3,
+                                                    cache_3_path, prefix), False  # cache
+
+
+        # Display cache
+        nf_rgb, nm_rgb, ne_rgb, nc_rgb, n_rgb = cache_rgb.pop('results')  # found, missing, empty, corrupted, total
+        nf_ir, nm_ir, ne_ir, nc_ir, n_ir = cache_ir.pop('results')  # found, missing, empty, corrupted, total
+        nf_3, nm_3, ne_3, nc_3, n_3 = cache_3.pop('results')  # found, missing, empty, corrupted, total
+        if exists_rgb:
+            d = f"Scanning RGB '{cache_rgb_path}' images and labels... {nf_rgb} found, {nm_rgb} missing, {ne_rgb} empty, {nc_rgb} corrupted"
+            tqdm(None, desc=prefix + d, total=n_rgb, initial=n_rgb)  # display cache results
+        if exists_ir:
+            d = f"Scanning IR '{cache_ir_path}' images and labels... {nf_ir} found, {nm_ir} missing, {ne_ir} empty, {nc_ir} corrupted"
+            tqdm(None, desc=prefix + d, total=n_ir, initial=n_ir)  # display cache results
+        if exists_3:
+            d = f"Scanning 3 '{cache_3_path}' images and labels... {nf_3} found, {nm_3} missing, {ne_3} empty, {nc_3} corrupted"
+            tqdm(None, desc=prefix + d, total=n_3, initial=n_3)  # display cache results
+
+        assert nf_rgb > 0 or not augment, f'{prefix}No labels in {cache_rgb_path}. Can not train without labels. See {help_url}'
+
+        # Read cache
+        # Read RGB cache
+        cache_rgb.pop('hash')  # remove hash
+        cache_rgb.pop('version')  # remove version
+        labels_rgb, shapes_rgb, self.segments_rgb = zip(*cache_rgb.values())
+        self.labels_rgb = list(labels_rgb)
+        self.shapes_rgb = np.array(shapes_rgb, dtype=np.float64)
+        self.img_files_rgb = list(cache_rgb.keys())  # update
+        self.label_files_rgb = img2label_paths(cache_rgb.keys())  # update
+        if single_cls:
+            for x in self.labels_rgb:
+                x[:, 0] = 0
+
+        n_rgb = len(shapes_rgb)  # number of images
+        bi_rgb = np.floor(np.arange(n_rgb) / batch_size).astype(np.int)  # batch index
+        nb_rgb = bi_rgb[-1] + 1  # number of batches
+        self.batch_rgb = bi_rgb  # batch index of image
+        self.n_rgb = n_rgb
+        self.indices_rgb = range(n_rgb)
+
+        # Read IR cache
+        cache_ir.pop('hash')  # remove hash
+        cache_ir.pop('version')  # remove version
+        labels_ir, shapes_ir, self.segments_ir = zip(*cache_ir.values())
+        self.labels_ir = list(labels_ir)
+        self.shapes_ir = np.array(shapes_ir, dtype=np.float64)
+        self.img_files_ir = list(cache_ir.keys())  # update
+        self.label_files_ir = img2label_paths(cache_ir.keys())  # update
+        if single_cls:
+            for x in self.labels_ir:
+                x[:, 0] = 0
+
+        n_ir = len(shapes_ir)  # number of images
+        bi_ir = np.floor(np.arange(n_ir) / batch_size).astype(np.int)  # batch index
+        nb_ir = bi_ir[-1] + 1  # number of batches
+        self.batch_ir = bi_ir  # batch index of image
+        self.n_ir = n_ir
+        self.indices_ir = range(n_ir)
+        
+        # Read 3 cache
+        cache_3.pop('hash')  # remove hash
+        cache_3.pop('version')  # remove version
+        labels_3, shapes_3, self.segments_3 = zip(*cache_3.values())
+        self.labels_3 = list(labels_3)
+        self.shapes_3 = np.array(shapes_3, dtype=np.float64)
+        self.img_files_3 = list(cache_3.keys())  # update
+        self.label_files_3 = img2label_paths(cache_3.keys())  # update
+        if single_cls:
+            for x in self.labels_3:
+                x[:, 0] = 0
+
+        n_3 = len(shapes_3)  # number of images
+        bi_3 = np.floor(np.arange(n_3) / batch_size).astype(np.int)  # batch index
+        nb_3 = bi_3[-1] + 1  # number of batches
+        self.batch_3 = bi_3  # batch index of image
+        self.n_3 = n_3
+        self.indices_3 = range(n_3)
+
+        # print( "self.img_files_rgb,  self.img_files_ir")
+        # print( self.img_files_rgb,  self.img_files_ir)
+
+        # Rectangular Training
+        if self.rect:
+
+            # RGB
+            # Sort by aspect ratio
+            s_rgb = self.shapes_rgb  # wh
+            ar_rgb = s_rgb[:, 1] / s_rgb[:, 0]  # aspect ratio
+            irect_rgb = ar_rgb.argsort()
+            self.img_files_rgb = [self.img_files_rgb[i] for i in irect_rgb]
+            self.label_files_rgb = [self.label_files_rgb[i] for i in irect_rgb]
+            self.labels_rgb = [self.labels_rgb[i] for i in irect_rgb]
+            self.shapes_rgb = s_rgb[irect_rgb]  # wh
+            ar_rgb = ar_rgb[irect_rgb]
+
+            # Set training image shapes
+            shapes_rgb = [[1, 1]] * nb_rgb
+            for i in range(nb_rgb):
+                ari_rgb = ar_rgb[bi_rgb == i]
+                mini, maxi = ari_rgb.min(), ari_rgb.max()
+                if maxi < 1:
+                    shapes_rgb[i] = [maxi, 1]
+                elif mini > 1:
+                    shapes_rgb[i] = [1, 1 / mini]
+
+            self.batch_shapes_rgb = np.ceil(np.array(shapes_rgb) * img_size / stride + pad).astype(np.int) * stride
+
+            # IR
+            # Sort by aspect ratio
+            s_ir = self.shapes_ir  # wh
+            ar_ir = s_ir[:, 1] / s_ir[:, 0]  # aspect ratio
+            irect_ir = ar_ir.argsort()
+            self.img_files_ir = [self.img_files_ir[i] for i in irect_ir]
+            self.label_files_ir = [self.label_files_ir[i] for i in irect_ir]
+            self.labels_ir = [self.labels_ir[i] for i in irect_ir]
+            self.shapes_ir = s_ir[irect_ir]  # wh
+            ar_ir = ar_ir[irect_ir]
+
+            # Set training image shapes
+            shapes_ir = [[1, 1]] * nb_ir
+            for i in range(nb_ir):
+                ari_ir = ar_ir[bi_ir == i]
+                mini, maxi = ari_ir.min(), ari_ir.max()
+                if maxi < 1:
+                    shapes_ir[i] = [maxi, 1]
+                elif mini > 1:
+                    shapes_ir[i] = [1, 1 / mini]
+
+            self.batch_shapes_ir = np.ceil(np.array(shapes_ir) * img_size / stride + pad).astype(np.int) * stride
+
+            # 3
+            # Sort by aspect ratio
+            s_3 = self.shapes_3  # wh
+            ar_3 = s_3[:, 1] / s_3[:, 0]  # aspect ratio
+            irect_3 = ar_3.argsort()
+            self.img_files_3 = [self.img_files_3[i] for i in irect_3]
+            self.label_files_3 = [self.label_files_3[i] for i in irect_3]
+            self.labels_3 = [self.labels_3[i] for i in irect_3]
+            self.shapes_3 = s_ir[irect_3]  # wh
+            ar_3 = ar_3[irect_3]
+
+            # Set training image shapes
+            shapes_3 = [[1, 1]] * nb_3
+            for i in range(nb_3):
+                ari_3 = ar_3[bi_3 == i]
+                mini, maxi = ari_3.min(), ari_3.max()
+                if maxi < 1:
+                    shapes_3[i] = [maxi, 1]
+                elif mini > 1:
+                    shapes_3[i] = [1, 1 / mini]
+
+            self.batch_shapes_3 = np.ceil(np.array(shapes_3) * img_size / stride + pad).astype(np.int) * stride
+            
+            
+        # Cache images into memory for faster training (WARNING: large datasets may exceed system RAM)
+        self.imgs_rgb = [None] * n_rgb
+        self.imgs_ir = [None] * n_ir
+        self.imgs_3 = [None] * n_3
+
+        # if cache_images:
+        #     # RGB
+        #     gb_rgb = 0  # Gigabytes of cached images
+        #     self.img_hw0_rgb, self.img_hw_rgb = [None] * n_rgb, [None] * n_rgb
+        #     results_rgb = ThreadPool(8).imap(lambda x: load_image(*x), zip(repeat(self), range(n_rgb)))  # 8 threads
+        #     pbar_rgb = tqdm(enumerate(results_rgb), total=n_rgb)
+        #     for i, x in pbar_rgb:
+        #         self.imgs_rgb[i], self.img_hw0_rgb[i], self.img_hw_rgb[i] = x  # img, hw_original, hw_resized = load_image(self, i)
+        #         gb_rgb += self.imgs_rgb[i].nbytes
+        #         pbar_rgb.desc = f'{prefix}Caching RGB images ({gb_rgb / 1E9:.1f}GB)'
+        #     pbar_rgb.close()
+        #
+        #     # IR
+        #     gb_ir = 0  # Gigabytes of cached images
+        #     self.img_hw0_ir, self.img_hw_ir = [None] * n_ir, [None] * n_ir
+        #     results_ir = ThreadPool(8).imap(lambda x: load_image(*x), zip(repeat(self), range(n_ir)))  # 8 threads
+        #     pbar_ir = tqdm(enumerate(results_ir), total=n_ir)
+        #     for i, x in pbar_ir:
+        #         self.imgs_ir[i], self.img_hw0_ir[i], self.img_hw_ir[i] = x  # img, hw_original, hw_resized = load_image(self, i)
+        #         gb_ir += self.imgs_ir[i].nbytes
+        #         pbar_ir.desc = f'{prefix}Caching RGB images ({gb_ir / 1E9:.1f}GB)'
+        #     pbar_ir.close()
+
+        self.labels = self.labels_rgb
+        self.shapes = self.shapes_rgb
+        self.indices = self.indices_rgb
+
+
+    def cache_labels(self, imgfiles, labelfiles, path=Path('./labels.cache'), prefix=''):
+        # Cache dataset labels, check images and read shapes
+        img_files = imgfiles
+        label_files = labelfiles
+        x = {}  # dict
+        nm, nf, ne, nc = 0, 0, 0, 0  # number missing, found, empty, duplicate
+        pbar = tqdm(zip(img_files, label_files), desc='Scanning images', total=len(img_files))
+        for i, (im_file, lb_file) in enumerate(pbar):
+            try:
+                # verify images
+                im = Image.open(im_file)
+                im.verify()  # PIL verify
+                shape = exif_size(im)  # image size
+                segments = []  # instance segments
+                assert (shape[0] > 9) & (shape[1] > 9), f'image size {shape} <10 pixels'
+                assert im.format.lower() in img_formats, f'invalid image format {im.format}'
+
+                # verify labels
+                if os.path.isfile(lb_file):
+                    nf += 1  # label found
+                    with open(lb_file, 'r') as f:
+                        l = [x.split() for x in f.read().strip().splitlines()]
+                        if any([len(x) > 8 for x in l]):  # is segment
+                            classes = np.array([x[0] for x in l], dtype=np.float32)
+                            segments = [np.array(x[1:], dtype=np.float32).reshape(-1, 2) for x in l]  # (cls, xy1...)
+                            l = np.concatenate((classes.reshape(-1, 1), segments2boxes(segments)), 1)  # (cls, xywh)
+                        l = np.array(l, dtype=np.float32)
+                    if len(l):
+                        assert l.shape[1] == 5, 'labels require 5 columns each'
+                        assert (l >= 0).all(), 'negative labels'
+                        assert (l[:, 1:] <= 1).all(), 'non-normalized or out of bounds coordinate labels'
+                        assert np.unique(l, axis=0).shape[0] == l.shape[0], 'duplicate labels'
+                    else:
+                        ne += 1  # label empty
+                        l = np.zeros((0, 5), dtype=np.float32)
+                else:
+                    nm += 1  # label missing
+                    l = np.zeros((0, 5), dtype=np.float32)
+                x[im_file] = [l, shape, segments]
+            except Exception as e:
+                nc += 1
+                print(f'{prefix}WARNING: Ignoring corrupted image and/or label {im_file}: {e}')
+
+            pbar.desc = f"{prefix}Scanning '{path.parent / path.stem}' images and labels... " \
+                        f"{nf} found, {nm} missing, {ne} empty, {nc} corrupted"
+        pbar.close()
+
+        if nf == 0:
+            print(f'{prefix}WARNING: No labels found in {path}. See {help_url}')
+
+        x['hash'] = get_hash(label_files + img_files)
+        x['results'] = nf, nm, ne, nc, i + 1
+        x['version'] = 0.1  # cache version
+        torch.save(x, path)  # save for next time
+        logging.info(f'{prefix}New cache created: {path}')
+        return x
+
+    def __len__(self):
+        return len(self.img_files_rgb)
+
+    # def __iter__(self):
+    #     self.count = -1
+    #     print('ran dataset iter')
+    #     #self.shuffled_vector = np.random.permutation(self.nF) if self.augment else np.arange(self.nF)
+    #     return self
+
+    def __getitem__(self, index):
+        # index = self.indices[index]  # linear, shuffled, or image_weights
+        index_rgb = self.indices_rgb[index]  # linear, shuffled, or image_weights
+        index_ir = self.indices_ir[index]  # linear, shuffled, or image_weights
+        index_3 = self.indices_3[index]  # linear, shuffled, or image_weights
+
+        hyp = self.hyp
+        mosaic = self.mosaic and random.random() < hyp['mosaic']
+        if mosaic:
+            # Load mosaic
+
+            # img, labels = load_mosaic(self, index)
+            img_rgb, labels_rgb, img_ir, labels_ir, img_3, labels_3 = load_mosaic_3(self, index_rgb, index_ir, index_3)
+
+            # # FQY 打印图片
+            # # print("--------------------------------------Load mosaic")
+            # im_rgb = Image.fromarray(img_rgb.astype('uint8')).convert('RGB')
+            # Image.Image.save(im_rgb, 'example_%s_%s.jpg' % (str(index), "RGB"))
+            # print(' write the example_%s_%s.jpg' % (self.path_rgb.split("/")[7], str(index)))
+            # im_ir = Image.fromarray(img_ir.astype('uint8')).convert('RGB')
+            # Image.Image.save(im_ir, 'example_%s_%s.jpg' % (str(index), "IR"))
+            # print(' write the example_%s_%s.jpg' % (self.path_ir.split("/")[7], str(index)))
+
+            shapes = None
+
+            # # MixUp https://arxiv.org/pdf/1710.09412.pdf
+            # if random.random() < hyp['mixup']:
+            #
+            #     img2, labels2 = load_mosaic(self, random.randint(0, self.n - 1))
+            #     r = np.random.beta(8.0, 8.0)  # mixup ratio, alpha=beta=8.0
+            #     img = (img * r + img2 * (1 - r)).astype(np.uint8)
+            #     labels = np.concatenate((labels, labels2), 0)
+
+        else:
+            # Load image
+            #img_rgb, img_ir, (h0, w0), (h, w) = load_image_rgb_ir(self, index)
+            img_rgb, img_ir, img_3, (h0, w0), (h, w) = load_image_3(self, index)
+
+            # Letterbox
+            shape = self.batch_shapes_rgb[self.batch_rgb[index]] if self.rect else self.img_size  # final letterboxed shape
+            img_rgb, ratio, pad = letterbox(img_rgb, shape, auto=False, scaleup=self.augment)
+            img_ir, ratio, pad = letterbox(img_ir, shape, auto=False, scaleup=self.augment)
+            img_3, ratio, pad = letterbox(img_3, shape, auto=False, scaleup=self.augment)
+
+            shapes = (h0, w0), ((h / h0, w / w0), pad)  # for COCO mAP rescaling
+
+            labels = self.labels_rgb[index].copy()
+            if labels.size:  # normalized xywh to pixel xyxy format
+                labels[:, 1:] = xywhn2xyxy(labels[:, 1:], ratio[0] * w, ratio[1] * h, padw=pad[0], padh=pad[1])
+
+            labels_rgb = labels
+            labels_ir = labels
+            labels_3 = labels
+
+        if self.augment:
+            # Augment imagespace
+
+            # if not mosaic:
+            #     img, labels = random_perspective(img, labels,
+            #                                      degrees=hyp['degrees'],
+            #                                      translate=hyp['translate'],
+            #                                      scale=hyp['scale'],
+            #                                      shear=hyp['shear'],
+            #                                      perspective=hyp['perspective'])
+
+            # Augment colorspace
+            augment_hsv(img_rgb, hgain=hyp['hsv_h'], sgain=hyp['hsv_s'], vgain=hyp['hsv_v'])
+            augment_hsv(img_ir, hgain=hyp['hsv_h'], sgain=hyp['hsv_s'], vgain=hyp['hsv_v'])
+            augment_hsv(img_3, hgain=hyp['hsv_h'], sgain=hyp['hsv_s'], vgain=hyp['hsv_v'])
+
+            # Apply cutouts
+            # if random.random() < 0.9:
+            #     labels = cutout(img, labels)
+
+        # nL = len(labels)  # number of labels
+        # if nL:
+        #     labels[:, 1:5] = xyxy2xywh(labels[:, 1:5])  # convert xyxy to xywh
+        #     labels[:, [2, 4]] /= img.shape[0]  # normalized height 0-1
+        #     labels[:, [1, 3]] /= img.shape[1]  # normalized width 0-1
+
+        nL = len(labels_rgb)  # number of labels
+        if nL:
+            labels_rgb[:, 1:5] = xyxy2xywh(labels_rgb[:, 1:5])  # convert xyxy to xywh
+            labels_rgb[:, [2, 4]] /= img_rgb.shape[0]  # normalized height 0-1
+            labels_rgb[:, [1, 3]] /= img_rgb.shape[1]  # normalized width 0-1
+
+
+        if self.augment:
+            # flip up-down
+            if random.random() < hyp['flipud']:
+                img_rgb = np.flipud(img_rgb)
+                img_ir = np.flipud(img_ir)
+                img_3= np.flipud(img_3)
+                if nL:
+                    labels_rgb[:, 2] = 1 - labels_rgb[:, 2]
+
+            # flip left-right
+            if random.random() < hyp['fliplr']:
+                img_rgb = np.fliplr(img_rgb)
+                img_ir = np.fliplr(img_ir)
+                img_3 = np.fliplr(img_3)
+
+                if nL:
+                    labels_rgb[:, 1] = 1 - labels_rgb[:, 1]
+
+        labels_out = torch.zeros((nL, 6))
+        if nL:
+            labels_out[:, 1:] = torch.from_numpy(labels_rgb)
+
+        # Convert
+        # img = img[:, :, ::-1].transpose(2, 0, 1)  # BGR to RGB, to 3x416x416
+        # img = np.ascontiguousarray(img)
+
+        img_rgb = img_rgb[:, :, ::-1].transpose(2, 0, 1)  # BGR to RGB, to 3x416x416
+        img_rgb = np.ascontiguousarray(img_rgb)
+        img_ir = img_ir[:, :, ::-1].transpose(2, 0, 1)  # BGR to RGB, to 3x416x416
+        img_ir = np.ascontiguousarray(img_ir)
+        img_3 = img_3[:, :, ::-1].transpose(2, 0, 1)  # BGR to RGB, to 3x416x416
+        img_3 = np.ascontiguousarray(img_3)
+
+        #img_all = np.concatenate((img_rgb, img_ir), axis=0)
+        img_all = np.concatenate((img_rgb, img_ir, img_3), axis=0)
+
+        return torch.from_numpy(img_all), labels_out, self.img_files_rgb[index], shapes
+
+    @staticmethod
+    def collate_fn(batch):
+        img, label, path, shapes = zip(*batch)  # transposed
+        for i, l in enumerate(label):
+            l[:, 0] = i  # add target image index for build_targets()
+        return torch.stack(img, 0), torch.cat(label, 0), path, shapes
+
+    @staticmethod
+    def collate_fn4(batch):
+        img, label, path, shapes = zip(*batch)  # transposed
+        n = len(shapes) // 4
+        img4, label4, path4, shapes4 = [], [], path[:n], shapes[:n]
+
+        ho = torch.tensor([[0., 0, 0, 1, 0, 0]])
+        wo = torch.tensor([[0., 0, 1, 0, 0, 0]])
+        s = torch.tensor([[1, 1, .5, .5, .5, .5]])  # scale
+        for i in range(n):  # zidane torch.zeros(16,3,720,1280)  # BCHW
+            i *= 4
+            if random.random() < 0.5:
+                im = F.interpolate(img[i].unsqueeze(0).float(), scale_factor=2., mode='bilinear', align_corners=False)[
+                    0].type(img[i].type())
+                l = label[i]
+            else:
+                im = torch.cat((torch.cat((img[i], img[i + 1]), 1), torch.cat((img[i + 2], img[i + 3]), 1)), 2)
+                l = torch.cat((label[i], label[i + 1] + ho, label[i + 2] + wo, label[i + 3] + ho + wo), 0) * s
+            img4.append(im)
+            label4.append(l)
+
+        for i, l in enumerate(label4):
+            l[:, 0] = i  # add target image index for build_targets()
+
+        return torch.stack(img4, 0), torch.cat(label4, 0), path4, shapes4
 
 
 # Ancillary functions --------------------------------------------------------------------------------------------------
@@ -1370,7 +1933,49 @@ def load_image_rgb_ir(self, index):
     else:
         return self.imgs_rgb[index], self.imgs_ir[index], self.img_hw0_rgb[index], self.img_hw_rgb[index]  # img, hw_original, hw_resized
 
+    
+def load_image_3(self, index):
+    # loads 1 image from dataset, returns img, original hw, resized hw
 
+    img_rgb = self.imgs_rgb[index]
+    img_ir = self.imgs_ir[index]
+    img_3 = self.imgs_ir[index]
+    # img_rgb = None
+    # img_ir = None
+
+
+    if (img_rgb is None) and (img_ir is None) and (img_3 is None):  # not cached
+
+        path_rgb = self.img_files_rgb[index]
+        path_ir = self.img_files_ir[index]
+        path_3 = self.img_files_3[index]
+
+        # # print("load_image_rgb_ir")
+        # print(path_rgb)
+        # print(path_ir)
+
+        img_rgb = cv2.imread(path_rgb)  # BGR
+        img_ir = cv2.imread(path_ir)  # BGR
+        img_3 = cv2.imread(path_3)  # BGR
+
+        assert img_rgb is not None, 'Image RGB Not Found ' + path_rgb
+        assert img_ir is not None, 'Image IR Not Found ' + path_ir
+        assert img_3 is not None, 'Image 3 Not Found ' + path_3
+
+        h0, w0 = img_rgb.shape[:2]  # orig hw
+        r = self.img_size / max(h0, w0)  # ratio
+        if r != 1:  # if sizes are not equal
+            img_rgb = cv2.resize(img_rgb, (int(w0 * r), int(h0 * r)),
+                             interpolation=cv2.INTER_AREA if r < 1 and not self.augment else cv2.INTER_LINEAR)
+            img_ir = cv2.resize(img_ir, (int(w0 * r), int(h0 * r)),
+                             interpolation=cv2.INTER_AREA if r < 1 and not self.augment else cv2.INTER_LINEAR)
+            img_3 = cv2.resize(img_3, (int(w0 * r), int(h0 * r)),
+                             interpolation=cv2.INTER_AREA if r < 1 and not self.augment else cv2.INTER_LINEAR)
+        return img_rgb, img_ir, img_3, (h0, w0), img_rgb.shape[:2]  # img, hw_original, hw_resized
+    else:
+        return self.imgs_rgb[index], self.imgs_ir[index], self.imgs_3[index], self.img_hw0_rgb[index], self.img_hw_rgb[index]  # img, hw_original, hw_resized
+
+    
 
 def augment_hsv(img, hgain=0.5, sgain=0.5, vgain=0.5):
     r = np.random.uniform(-1, 1, 3) * [hgain, sgain, vgain] + 1  # random gains
@@ -1604,6 +2209,150 @@ def load_mosaic_RGB_IR(self, index1, index2):
     return img4_rgb, labels4_rgb, img4_ir, labels4_ir
 
 
+def load_mosaic_3(self, index1, index2, index3):
+    # loads images in a 4-mosaic
+
+    # print("BATCH")
+    # print("BATCH", self.batch)
+
+    # print("Path", self.path)
+    # print("INDEX", index)
+
+    # seed = global_var.get_value('mosica_random_seed')
+    # seed = index
+    # random.seed(seed)
+
+    index_rgb = index1
+    index_ir = index2
+    index_3 = index3
+
+    labels4_rgb, segments4_rgb = [], []
+    labels4_ir, segments4_ir = [], []
+    labels4_3, segments4_3 = [], []
+
+    s = self.img_size
+
+    # print("image size ", s)
+
+    yc, xc = [int(random.uniform(-x, 2 * s + x)) for x in self.mosaic_border]  # mosaic center x, y
+
+    assert index_rgb == index_ir, 'INDEX RGB 不等于 INDEX IR'
+    assert index_ir == index_3, 'INDEX IR 不等于 INDEX 3'
+
+    indices = [index_rgb] + random.choices(self.indices_rgb, k=3)  # 3 additional image indices
+
+    for i, index in enumerate(indices):
+        # Load image
+
+        # img, _, (h, w) = load_image(self, index)
+        #img_rgb, img_ir, _, (h, w) = load_image_rgb_ir(self, index)
+        img_rgb, img_ir, img_3, _, (h, w) = load_image_3(self, index)
+
+        # cv2.imwrite("rgb_%s.jpg"%str(index), img_rgb)
+        # cv2.imwrite("ir_%s.jpg"%str(index), img_ir)
+
+        # place img in img4
+        if i == 0:  # top left
+            img4_rgb = np.full((s * 2, s * 2, img_rgb.shape[2]), 114, dtype=np.uint8)  # base image with 4 tiles
+            img4_ir = np.full((s * 2, s * 2, img_ir.shape[2]), 114, dtype=np.uint8)  # base image with 4 tiles
+            img4_3 = np.full((s * 2, s * 2, img_3.shape[2]), 114, dtype=np.uint8)  # base image with 4 tiles
+            x1a, y1a, x2a, y2a = max(xc - w, 0), max(yc - h, 0), xc, yc  # xmin, ymin, xmax, ymax (large image)
+            x1b, y1b, x2b, y2b = w - (x2a - x1a), h - (y2a - y1a), w, h  # xmin, ymin, xmax, ymax (small image)
+        elif i == 1:  # top right
+            x1a, y1a, x2a, y2a = xc, max(yc - h, 0), min(xc + w, s * 2), yc
+            x1b, y1b, x2b, y2b = 0, h - (y2a - y1a), min(w, x2a - x1a), h
+        elif i == 2:  # bottom left
+            x1a, y1a, x2a, y2a = max(xc - w, 0), yc, xc, min(s * 2, yc + h)
+            x1b, y1b, x2b, y2b = w - (x2a - x1a), 0, w, min(y2a - y1a, h)
+        elif i == 3:  # bottom right
+            x1a, y1a, x2a, y2a = xc, yc, min(xc + w, s * 2), min(s * 2, yc + h)
+            x1b, y1b, x2b, y2b = 0, 0, min(w, x2a - x1a), min(y2a - y1a, h)
+
+        # img4[y1a:y2a, x1a:x2a] = img[y1b:y2b, x1b:x2b]  # img4[ymin:ymax, xmin:xmax]
+        # padw = x1a - x1b
+        # padh = y1a - y1b
+
+        img4_rgb[y1a:y2a, x1a:x2a] = img_rgb[y1b:y2b, x1b:x2b]  # img4[ymin:ymax, xmin:xmax]
+        img4_ir[y1a:y2a, x1a:x2a] = img_ir[y1b:y2b, x1b:x2b]  # img4[ymin:ymax, xmin:xmax]
+        img4_3[y1a:y2a, x1a:x2a] = img_3[y1b:y2b, x1b:x2b]  # img4[ymin:ymax, xmin:xmax]
+        padw = x1a - x1b
+        padh = y1a - y1b
+
+        # # Labels
+        # labels, segments = self.labels[index].copy(), self.segments[index].copy()
+        # if labels.size:
+        #     labels[:, 1:] = xywhn2xyxy(labels[:, 1:], w, h, padw, padh)  # normalized xywh to pixel xyxy format
+        #     segments = [xyn2xy(x, w, h, padw, padh) for x in segments]
+        # labels4.append(labels)
+        # segments4.extend(segments)
+
+        labels_rgb, segments_rgb = self.labels_rgb[index].copy(), self.segments_rgb[index].copy()
+        labels_ir, segments_ir = self.labels_ir[index].copy(), self.segments_ir[index].copy()
+        labels_3, segments_3 = self.labels_3[index].copy(), self.segments_3[index].copy()
+        if labels_rgb.size:
+            labels_rgb[:, 1:] = xywhn2xyxy(labels_rgb[:, 1:], w, h, padw, padh)  # normalized xywh to pixel xyxy format
+            labels_ir[:, 1:] = xywhn2xyxy(labels_ir[:, 1:], w, h, padw, padh)  # normalized xywh to pixel xyxy format
+            labels_3[:, 1:] = xywhn2xyxy(labels_3[:, 1:], w, h, padw, padh)  # normalized xywh to pixel xyxy format
+            segments_rgb = [xyn2xy(x, w, h, padw, padh) for x in segments_rgb]
+            segments_ir = [xyn2xy(x, w, h, padw, padh) for x in segments_ir]
+            segments_3 = [xyn2xy(x, w, h, padw, padh) for x in segments_3]
+        labels4_rgb.append(labels_rgb)
+        segments4_rgb.extend(segments_rgb)
+        labels4_ir.append(labels_ir)
+        segments4_ir.extend(segments_ir)
+        labels4_3.append(labels_3)
+        segments4_3.extend(segments_3)
+
+    # # Concat/clip labels
+    # labels4 = np.concatenate(labels4, 0)
+    # for x in (labels4[:, 1:], *segments4):
+    #     np.clip(x, 0, 2 * s, out=x)  # clip when using random_perspective()
+    # # img4, labels4 = replicate(img4, labels4)  # replicate
+
+    labels4_rgb = np.concatenate(labels4_rgb, 0)
+    labels4_ir = np.concatenate(labels4_ir, 0)
+    labels4_3 = np.concatenate(labels4_3, 0)
+    for x in (labels4_rgb[:, 1:], *segments4_rgb):
+        np.clip(x, 0, 2 * s, out=x)  # clip when using random_perspective()
+    for x in (labels4_ir[:, 1:], *segments4_ir):
+        np.clip(x, 0, 2 * s, out=x)  # clip when using random_perspective()
+    for x in (labels4_3[:, 1:], *segments4_3):
+        np.clip(x, 0, 2 * s, out=x)  # clip when using random_perspective()
+    # img4, labels4 = replicate(img4, labels4)  # replicate
+
+
+    # # Augment
+    # img4_rgb, labels4_rgb = random_perspective(img4_rgb, labels4_rgb, segments4_rgb,
+    #                                    degrees=self.hyp['degrees'],
+    #                                    translate=self.hyp['translate'],
+    #                                    scale=self.hyp['scale'],
+    #                                    shear=self.hyp['shear'],
+    #                                    perspective=self.hyp['perspective'],
+    #                                    border=self.mosaic_border)  # border to remove
+    img4_rgb, img4_ir, img4_3, labels4_rgb, labels4_ir, labels4_3 = random_perspective_3(img4_rgb, img4_ir, img4_3, labels4_rgb, labels4_ir, labels4_3,
+                                                                           segments4_rgb, segments4_ir, segments4_3,
+                                                    degrees=self.hyp['degrees'],
+                                                    translate=self.hyp['translate'],
+                                                    scale=self.hyp['scale'],
+                                                    shear=self.hyp['shear'],
+                                                    perspective=self.hyp['perspective'],
+                                                    border=self.mosaic_border)  # border to remove
+
+
+    # print(labels_rgb)
+    # print(labels4_ir)
+
+    # assert labels4_rgb == labels4_ir, 'LABEL4 RGB 不等于 LABEL4 IR'
+    # print(" labels4_rgb == labels4_ir ", labels4_rgb == labels4_ir)
+    labels4_ir = labels4_rgb
+    labels4_3 = labels4_rgb
+
+    # cv2.imwrite("rgb_%s.jpg" % str(index1), img4_rgb)
+    # cv2.imwrite("ir_%s.jpg" % str(index2), img4_ir)
+
+
+    return img4_rgb, labels4_rgb, img4_ir, labels4_ir, img4_3, labels4_3
+    
 
 def load_mosaic9(self, index):
     # loads images in a 9-mosaic
