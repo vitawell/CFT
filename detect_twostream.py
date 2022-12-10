@@ -101,8 +101,66 @@ def detect(opt):
         t2 = time_synchronized()
 
         ###
+        # Apply Classifier
+        if classify:
+            pred1 = apply_classifier(pred1, modelc, img, im0s)
+            pred2 = apply_classifier(pred2, modelc, img, im0s)
+            
         # Process detections
-        for i, det in enumerate(pred):  # detections per image
+        ## 2个detect融合
+        ## zip将迭代元素打包成元组，若长度不一舍去长的部分。
+        for si, (im0, model2_dets, model1_dets) in enumerate(zip(img, pred2, pred1)):
+            #
+            #print(im0.shape)  #用img torch.Size([6, 384, 672])
+            #用img_rgb torch.Size([3, 384, 672])
+            im0 = im0.detach().cpu().numpy() * 255
+            im0 = im0.transpose((1,2,0)).astype(np.uint8).copy()
+            #print(im0.shape)  #(384, 672, 3)
+            #后面example_wbf_1_models里面 img_height, img_width = img.shape[1:]
+            
+            #model2为空?
+            if len(model2_dets):  #若model2不为空
+                #scale_coords将坐标coords(x1y1x2y2)从img_shape缩放到im0_shape尺寸（尺寸一致）
+                model2_dets[:, :4] = scale_coords(img.shape[2:], model2_dets[:, :4], im0.shape).round()
+                ##归一化坐标到[0,1]，后面example_wbf_2_models里面会归一化
+                ##为什么坐标会超过1？
+                #model2_dets[:, 0],  model2_dets[:, 2] = model2_dets[:, 0]/ width,  model2_dets[:, 2]/ width
+                #model2_dets[:, 1],  model2_dets[:, 3] = model2_dets[:, 0]/ height,  model2_dets[:, 2]/ height
+
+            if len(model1_dets):
+                model1_dets[:, :4] = scale_coords(img.shape[2:], model1_dets[:, :4], im0.shape).round()
+                #model1_dets[:, 0],  model1_dets[:, 2] = model1_dets[:, 0]/ width,  model1_dets[:, 2]/ width
+                #model1_dets[:, 1],  model1_dets[:, 3] = model1_dets[:, 0]/ height,  model1_dets[:, 2]/ height
+             
+            #print(len(model2_dets))  #0?  #model2为空?
+            #print(len(model1_dets))  #1
+                
+            if len(model2_dets)>0 and len(model1_dets)>0:
+                boxes, scores, labels = example_wbf_2_models(model2_dets.detach().cpu().numpy(), model1_dets.detach().cpu().numpy(), im0)
+                #通过im0获取图片width、height
+                boxes[:,0], boxes[:,2] = boxes[:,0] * width, boxes[:,2] * width
+                boxes[:,1], boxes[:,3] = boxes[:,1] * height, boxes[:,3] * height
+                for box in boxes:
+                    cv2.rectangle(im0, (int(box[0]), int(box[1])), (int(box[2]), int(box[3])), (0,0,255), 3)
+            elif len(model2_dets)>0:
+                boxes, scores, labels = example_wbf_1_model(model2_dets.detach().cpu().numpy(), im0)
+                boxes[:,0], boxes[:,2] = boxes[:,0] * width, boxes[:,2] * width
+                boxes[:,1], boxes[:,3] = boxes[:,1] * height, boxes[:,3] * height
+                for box in boxes:
+                    cv2.rectangle(im0, (int(box[0]), int(box[1])), (int(box[2]), int(box[3])), (0,0,255), 3)
+            elif len(model1_dets)>0:
+                boxes, scores, labels = example_wbf_1_model(model1_dets.detach().cpu().numpy(), im0)
+                boxes[:,0], boxes[:,2] = boxes[:,0] * width, boxes[:,2] * width
+                boxes[:,1], boxes[:,3] = boxes[:,1] * height, boxes[:,3] * height
+                for box in boxes:
+                    cv2.rectangle(im0, (int(box[0]), int(box[1])), (int(box[2]), int(box[3])), (0,0,255), 3)
+            else: ##没有时返回0
+                boxes, scores, labels = np.zeros((0, 4)), np.zeros((0,)), np.zeros((0,))
+            
+            ###
+            p_boxes, p_scores, p_labels = boxes, scores, labels
+            
+        #for i, det in enumerate(pred):  # detections per image
 
             if webcam:  # batch_size >= 1
                 p, s, im0, frame = path[i], '%g: ' % i, im0s[i].copy(), dataset.count
@@ -120,16 +178,16 @@ def detect(opt):
             # print(det)
             if len(det):
                 # Rescale boxes from img_size to im0 size
-                det[:, :4] = scale_coords(img.shape[2:], det[:, :4], im0.shape).round()
+                #det[:, :4] = scale_coords(img.shape[2:], det[:, :4], im0.shape).round()
 
                 # Print results
-                for c in det[:, -1].unique():
-                    n = (det[:, -1] == c).sum()  # detections per class
+                for c in p_labels.unique():
+                    n = (p_labels == c).sum()  # detections per class
                     s += f"{n} {names[int(c)]}{'s' * (n > 1)}, "  # add to string
 
                 # Write results
                 # xyxy是预测框左上角和右下角坐标
-                for *xyxy, conf, cls in reversed(det):
+                for *xyxy, conf, cls in enumerate(reversed(zip(p_boxes, p_scores, p_labels))):
                     if save_txt:  # Write to file
                         xywh = (xyxy2xywh(torch.tensor(xyxy).view(1, 4)) / gn).view(-1).tolist()  # normalized xywh
                         line = (cls, *xywh, conf) if opt.save_conf else (cls, *xywh)  # label format
@@ -182,89 +240,89 @@ def detect(opt):
                     vid_writer.write(im0)
         
         ###
-        # Apply Classifier
-        if classify:
-            pred = apply_classifier(pred, modelc, img, im0s)
+#         # Apply Classifier
+#         if classify:
+#             pred = apply_classifier(pred, modelc, img, im0s)
 
-        # Process detections
-        for i, det in enumerate(pred):  # detections per image
+#         # Process detections
+#         for i, det in enumerate(pred):  # detections per image
 
-            if webcam:  # batch_size >= 1
-                p, s, im0, frame = path[i], '%g: ' % i, im0s[i].copy(), dataset.count
-            else:
-                p, s, im0, frame = path, '', im0s.copy(), getattr(dataset, 'frame', 0)
-                p, s, im0_, frame = path, '', im0s_.copy(), getattr(dataset2, 'frame', 0)
+#             if webcam:  # batch_size >= 1
+#                 p, s, im0, frame = path[i], '%g: ' % i, im0s[i].copy(), dataset.count
+#             else:
+#                 p, s, im0, frame = path, '', im0s.copy(), getattr(dataset, 'frame', 0)
+#                 p, s, im0_, frame = path, '', im0s_.copy(), getattr(dataset2, 'frame', 0)
 
-            p = Path(p)  # to Path
-            save_path = str(save_dir / p.name)  # img.jpg
-            txt_path = str(save_dir / 'labels' / p.stem) + ('' if dataset.mode == 'image' else f'_{frame}')  # img.txt
-            s += '%gx%g ' % img.shape[2:]  # print string
-            gn = torch.tensor(im0.shape)[[1, 0, 1, 0]]  # normalization gain whwh
-            # print(gn)
+#             p = Path(p)  # to Path
+#             save_path = str(save_dir / p.name)  # img.jpg
+#             txt_path = str(save_dir / 'labels' / p.stem) + ('' if dataset.mode == 'image' else f'_{frame}')  # img.txt
+#             s += '%gx%g ' % img.shape[2:]  # print string
+#             gn = torch.tensor(im0.shape)[[1, 0, 1, 0]]  # normalization gain whwh
+#             # print(gn)
 
-            # print(det)
-            if len(det):
-                # Rescale boxes from img_size to im0 size
-                det[:, :4] = scale_coords(img.shape[2:], det[:, :4], im0.shape).round()
+#             # print(det)
+#             if len(det):
+#                 # Rescale boxes from img_size to im0 size
+#                 det[:, :4] = scale_coords(img.shape[2:], det[:, :4], im0.shape).round()
 
-                # Print results
-                for c in det[:, -1].unique():
-                    n = (det[:, -1] == c).sum()  # detections per class
-                    s += f"{n} {names[int(c)]}{'s' * (n > 1)}, "  # add to string
+#                 # Print results
+#                 for c in det[:, -1].unique():
+#                     n = (det[:, -1] == c).sum()  # detections per class
+#                     s += f"{n} {names[int(c)]}{'s' * (n > 1)}, "  # add to string
 
-                # Write results
-                # xyxy是预测框左上角和右下角坐标
-                for *xyxy, conf, cls in reversed(det):
-                    if save_txt:  # Write to file
-                        xywh = (xyxy2xywh(torch.tensor(xyxy).view(1, 4)) / gn).view(-1).tolist()  # normalized xywh
-                        line = (cls, *xywh, conf) if opt.save_conf else (cls, *xywh)  # label format
-                        with open(txt_path + '.txt', 'a') as f:
-                            f.write(('%g ' * len(line)).rstrip() % line + '\n')
+#                 # Write results
+#                 # xyxy是预测框左上角和右下角坐标
+#                 for *xyxy, conf, cls in reversed(det):
+#                     if save_txt:  # Write to file
+#                         xywh = (xyxy2xywh(torch.tensor(xyxy).view(1, 4)) / gn).view(-1).tolist()  # normalized xywh
+#                         line = (cls, *xywh, conf) if opt.save_conf else (cls, *xywh)  # label format
+#                         with open(txt_path + '.txt', 'a') as f:
+#                             f.write(('%g ' * len(line)).rstrip() % line + '\n')
 
-                    if save_img or opt.save_crop or view_img:  # Add bbox to image
-                        c = int(cls)  # integer class
-                        label = None if opt.hide_labels else (names[c] if opt.hide_conf else f'{names[c]} {conf:.2f}')
+#                     if save_img or opt.save_crop or view_img:  # Add bbox to image
+#                         c = int(cls)  # integer class
+#                         label = None if opt.hide_labels else (names[c] if opt.hide_conf else f'{names[c]} {conf:.2f}')
                         
-                        # rgb图像是im0
-                        plot_one_box(xyxy, im0, label=label, color=colors(c, True), line_thickness=opt.line_thickness)
-                        # ir图像是im0_
-                        plot_one_box(xyxy, im0_, label=label, color=colors(c, True), line_thickness=opt.line_thickness)
-                        if opt.save_crop:
-                            save_one_box(xyxy, im0s, file=save_dir / 'crops' / names[c] / f'{p.stem}.jpg', BGR=True)
+#                         # rgb图像是im0
+#                         plot_one_box(xyxy, im0, label=label, color=colors(c, True), line_thickness=opt.line_thickness)
+#                         # ir图像是im0_
+#                         plot_one_box(xyxy, im0_, label=label, color=colors(c, True), line_thickness=opt.line_thickness)
+#                         if opt.save_crop:
+#                             save_one_box(xyxy, im0s, file=save_dir / 'crops' / names[c] / f'{p.stem}.jpg', BGR=True)
 
-            # Print time (inference + NMS)
-            print(f'{s}Done. ({t2 - t1:.6f}s, {1/(t2 - t1):.6f}Hz)')
-            # add all the fps
-            img_num += 1
-            fps_sum += 1/(t2 - t1)
+#             # Print time (inference + NMS)
+#             print(f'{s}Done. ({t2 - t1:.6f}s, {1/(t2 - t1):.6f}Hz)')
+#             # add all the fps
+#             img_num += 1
+#             fps_sum += 1/(t2 - t1)
 
-            # Stream results
-            if view_img:
-                cv2.imshow(str(p), im0)
-                cv2.waitKey(1)  # 1 millisecond
+#             # Stream results
+#             if view_img:
+#                 cv2.imshow(str(p), im0)
+#                 cv2.waitKey(1)  # 1 millisecond
 
-            # Save results (image with detections)
-            if save_img:
-                if dataset.mode == 'image':
-                    save_path_rgb = save_path.split('.')[0] + '_rgb.' + save_path.split('.')[1]
-                    save_path_ir = save_path.split('.')[0] + '_ir.' + save_path.split('.')[1]
-                    print(save_path_rgb)
-                    cv2.imwrite(save_path_rgb, im0)
-                    cv2.imwrite(save_path_ir, im0_)
-                else:  # 'video' or 'stream'
-                    if vid_path != save_path:  # new video
-                        vid_path = save_path
-                        if isinstance(vid_writer, cv2.VideoWriter):
-                            vid_writer.release()  # release previous video writer
-                        if vid_cap:  # video
-                            fps = vid_cap.get(cv2.CAP_PROP_FPS)
-                            w = int(vid_cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-                            h = int(vid_cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-                        else:  # stream
-                            fps, w, h = 30, im0.shape[1], im0.shape[0]
-                            save_path += '.mp4'
-                        vid_writer = cv2.VideoWriter(save_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (w, h))
-                    vid_writer.write(im0)
+#             # Save results (image with detections)
+#             if save_img:
+#                 if dataset.mode == 'image':
+#                     save_path_rgb = save_path.split('.')[0] + '_rgb.' + save_path.split('.')[1]
+#                     save_path_ir = save_path.split('.')[0] + '_ir.' + save_path.split('.')[1]
+#                     print(save_path_rgb)
+#                     cv2.imwrite(save_path_rgb, im0)
+#                     cv2.imwrite(save_path_ir, im0_)
+#                 else:  # 'video' or 'stream'
+#                     if vid_path != save_path:  # new video
+#                         vid_path = save_path
+#                         if isinstance(vid_writer, cv2.VideoWriter):
+#                             vid_writer.release()  # release previous video writer
+#                         if vid_cap:  # video
+#                             fps = vid_cap.get(cv2.CAP_PROP_FPS)
+#                             w = int(vid_cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+#                             h = int(vid_cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+#                         else:  # stream
+#                             fps, w, h = 30, im0.shape[1], im0.shape[0]
+#                             save_path += '.mp4'
+#                         vid_writer = cv2.VideoWriter(save_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (w, h))
+#                     vid_writer.write(im0)
 
     if save_txt or save_img:
         s = f"\n{len(list(save_dir.glob('labels/*.txt')))} labels saved to {save_dir / 'labels'}" if save_txt else ''
