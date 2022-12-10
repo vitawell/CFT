@@ -319,10 +319,14 @@ def train_rgb_ir(hyp, opt, device, tb_writer=None):
                     image = image.squeeze(0)  # remove the fake batch dimension
                     image = unloader(image)
                     image.save('example_%s_%s_%s_color.jpg'%(str(epoch), str(i), str(num)))
-                    image = imgs[num, 3:, :, :].cpu().clone()  # clone the tensor
+                    image = imgs[num, 3:6, :, :].cpu().clone()  # clone the tensor
                     image = image.squeeze(0)  # remove the fake batch dimension
                     image = unloader(image)
                     image.save('example_%s_%s_%s_ir.jpg'%(str(epoch), str(i), str(num)))
+                    image = imgs[num, 6:, :, :].cpu().clone()  # clone the tensor
+                    image = image.squeeze(0)  # remove the fake batch dimension
+                    image = unloader(image)
+                    image.save('example_%s_%s_%s_3.jpg'%(str(epoch), str(i), str(num)))
 
 
             # Warmup
@@ -348,7 +352,7 @@ def train_rgb_ir(hyp, opt, device, tb_writer=None):
             with amp.autocast(enabled=cuda):
                 # pred = model(imgs)  # forward
                 ##pred = model(imgs_rgb, imgs_ir)  # forward
-                pred = model(imgs_rgb, imgs_ir)  # forward
+                pred = model(imgs_rgb, imgs_ir, imgs_3)  # forward
                 #返回dout时，pred为list
                 #print(len(pred)) #len=2
                 
