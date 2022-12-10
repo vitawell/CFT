@@ -100,7 +100,7 @@ head:
    
    
    ####
-   [[43, 46, 49], 1, Detect, [nc, anchors]],    # Detect(P3, P4, P5) 65 depth+jet2
-   [[57, 60, 63], 1, Detect, [nc, anchors]],    # Detect(P3, P4, P5) 66 rgb+depth
+   [[43, 46, 49], 1, Detect, [nc, anchors]],    # Detect(P3, P4, P5) 64 depth+jet2
+   [[57, 60, 63], 1, Detect, [nc, anchors]],    # Detect(P3, P4, P5) 65 rgb+depth
    
   ]
