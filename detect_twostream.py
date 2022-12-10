@@ -119,6 +119,8 @@ def detect(opt):
             im0 = im0.transpose((1,2,0)).astype(np.uint8).copy()
             #print(im0.shape)  #(384, 672, 3)
             #后面example_wbf_1_models里面 img_height, img_width = img.shape[1:]
+            width = im0.shape[1]
+            height = im0.shape[0]
             
             #model2为空?
             if len(model2_dets):  #若model2不为空
