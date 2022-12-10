@@ -15,6 +15,8 @@ from utils.general import check_img_size, check_requirements, check_imshow, non_
 from utils.plots import colors, plot_one_box
 from utils.torch_utils import select_device, load_classifier, time_synchronized
 
+from models.WBF.examples.example import example_wbf_3_models, example_wbf_2_models, example_wbf_1_model
+
 
 def detect(opt):
     source1, source2, weights, view_img, save_txt, imgsz = opt.source1, opt.source2, opt.weights, opt.view_img, opt.save_txt, opt.img_size
