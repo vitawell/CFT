@@ -20,7 +20,13 @@
 修改WBF/ensemble_boxes/ensemble_boxes_wbf.py中面积为0的框跳过。
 
 修改WBF/examples/example.py增加3个模型融合，修改WBFtest.py增加3个模型融合。
+
 修改detect_twostream.py使用WBF，在服务器上改为detect.py
+
+
+##
+修改utils/datasets.py中添加加载3个模态数据
+修改train.py中记载数据
 
 
 ## CFT
