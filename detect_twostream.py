@@ -82,7 +82,7 @@ def detect(opt):
         t1 = time_synchronized()
         #pred = model(img, img2, augment=opt.augment)[0]
         ##pred为输出的推理out
-        pred = model(img, img2, augment=opt.augment)[0]
+        pred = model(img, img2, augment=opt.augment)[1]
         out = []
         for k in range(0,len(pred)):
             out.append(pred[k][0])
