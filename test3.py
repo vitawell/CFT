@@ -143,7 +143,7 @@ def test(data,
 
         img_rgb = img[:, :3, :, :]
         img_ir = img[:, 3:6, :, :]
-        img_ir = img[:, 6:, :, :]
+        img_3 = img[:, 6:, :, :]
 
         with torch.no_grad():
             # Run model
