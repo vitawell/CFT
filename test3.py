@@ -156,7 +156,7 @@ def test(data,
             
             #out, train_out = model(img_rgb, img_ir, augment=augment)  # inference and training outputs
             
-            out1, dout = model(img_rgb, img_ir, img3, augment=augment)  
+            out1, dout = model(img_rgb, img_ir, img_3, augment=augment)  
             #out1为最后一个detect，dout为所有detect
             ##
             #3个元组 #3detect
