@@ -235,25 +235,25 @@ def test(data,
         # 为每张图片做统计，写入预测信息到txt文件，生成json文件字典，统计tp等
         # out: list{bs}  [300, 6] [42, 6] [300, 6] [300, 6]  [pred_obj_num, x1y1x2y2+object_conf+cls]
         
-        ### 3个detect融合？
-        for si, (im0, model1_dets, model2_dets, model3_dets) in enumerate(zip(img_rgb, model1_out, model2_out, model3_out)):
-            #
-            #print(im0.shape)  #用img torch.Size([6, 384, 672])
-            #用img_rgb torch.Size([3, 384, 672])
-            im0 = im0.detach().cpu().numpy() * 255
-            im0 = im0.transpose((1,2,0)).astype(np.uint8).copy()
-            #concat two model's outputs
-            if len(model3_dets):
-                model3_dets[:, :4] = scale_coords(img.shape[2:], model3_dets[:, :4], im0.shape).round()
+#         ### 3个detect融合？
+#         for si, (im0, model1_dets, model2_dets, model3_dets) in enumerate(zip(img_rgb, model1_out, model2_out, model3_out)):
+#             #
+#             #print(im0.shape)  #用img torch.Size([6, 384, 672])
+#             #用img_rgb torch.Size([3, 384, 672])
+#             im0 = im0.detach().cpu().numpy() * 255
+#             im0 = im0.transpose((1,2,0)).astype(np.uint8).copy()
+#             #concat two model's outputs
+#             if len(model3_dets):
+#                 model3_dets[:, :4] = scale_coords(img.shape[2:], model3_dets[:, :4], im0.shape).round()
                 
-            if len(model2_dets):  #若model2不为空
-                model2_dets[:, :4] = scale_coords(img.shape[2:], model2_dets[:, :4], im0.shape).round()
+#             if len(model2_dets):  #若model2不为空
+#                 model2_dets[:, :4] = scale_coords(img.shape[2:], model2_dets[:, :4], im0.shape).round()
 
-            if len(model1_dets):
-                model1_dets[:, :4] = scale_coords(img.shape[2:], model1_dets[:, :4], im0.shape).round()
+#             if len(model1_dets):
+#                 model1_dets[:, :4] = scale_coords(img.shape[2:], model1_dets[:, :4], im0.shape).round()
             
-            # Flag for indicating detection success 检测成功标志
-            #detect_success = False
+#             # Flag for indicating detection success 检测成功标志
+#             #detect_success = False
             
 #             #iou_thres = 0.55
 #             if len(model3_dets)>0 and len(model2_dets)>0 and len(model1_dets)>0:
