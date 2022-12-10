@@ -142,15 +142,15 @@ def detect(opt):
             if len(model2_dets)>0 and len(model1_dets)>0:
                 boxes, scores, labels = example_wbf_2_models(model2_dets.detach().cpu().numpy(), model1_dets.detach().cpu().numpy(), im0)
                 #通过im0获取图片width、height
-                boxes[:,0], boxes[:,2] = boxes[:,0] * width, boxes[:,2] * width
-                boxes[:,1], boxes[:,3] = boxes[:,1] * height, boxes[:,3] * height
-                for box in boxes:
-                    cv2.rectangle(im0, (int(box[0]), int(box[1])), (int(box[2]), int(box[3])), (0,0,255), 3)
+                #boxes[:,0], boxes[:,2] = boxes[:,0] * width, boxes[:,2] * width
+                #boxes[:,1], boxes[:,3] = boxes[:,1] * height, boxes[:,3] * height
+                #for box in boxes:
+                    #cv2.rectangle(im0, (int(box[0]), int(box[1])), (int(box[2]), int(box[3])), (0,0,255), 3)
             elif len(model2_dets)>0:
                 boxes, scores, labels = example_wbf_1_model(model2_dets.detach().cpu().numpy(), im0)
-                boxes[:,0], boxes[:,2] = boxes[:,0] * width, boxes[:,2] * width
-                boxes[:,1], boxes[:,3] = boxes[:,1] * height, boxes[:,3] * height
-                for box in boxes:
+                #boxes[:,0], boxes[:,2] = boxes[:,0] * width, boxes[:,2] * width
+                #boxes[:,1], boxes[:,3] = boxes[:,1] * height, boxes[:,3] * height
+                #for box in boxes:
                     cv2.rectangle(im0, (int(box[0]), int(box[1])), (int(box[2]), int(box[3])), (0,0,255), 3)
             elif len(model1_dets)>0:
                 boxes, scores, labels = example_wbf_1_model(model1_dets.detach().cpu().numpy(), im0)
@@ -181,8 +181,9 @@ def detect(opt):
 
             # print(det)
             if len(p_boxes):
+                p_boxes = torch.from_numpy(p_boxes)
                 # Rescale boxes from img_size to im0 size
-                #det[:, :4] = scale_coords(img.shape[2:], det[:, :4], im0.shape).round()
+                p_boxes[:, :4] = scale_coords(img.shape[2:], p_boxes[:, :4], im0.shape).round()
 
                 # Print results
                 for c in p_labels:
@@ -192,7 +193,7 @@ def detect(opt):
                 # Write results
                 # xyxy是预测框左上角和右下角坐标
                 for si, (*xyxy, conf, cls) in enumerate(zip(p_boxes, p_scores, p_labels)):
-                    #xyxy = xyxy[0].tolist()
+                    xyxy = xyxy[0].tolist()
                     #print(xyxy)
                     #print(conf)
                     #print(cls)
