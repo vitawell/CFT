@@ -180,18 +180,22 @@ def detect(opt):
             # print(gn)
 
             # print(det)
-            if len(det):
+            if len(p_boxes):
                 # Rescale boxes from img_size to im0 size
                 #det[:, :4] = scale_coords(img.shape[2:], det[:, :4], im0.shape).round()
 
                 # Print results
-                for c in p_labels.unique():
+                for c in p_labels:
                     n = (p_labels == c).sum()  # detections per class
                     s += f"{n} {names[int(c)]}{'s' * (n > 1)}, "  # add to string
 
                 # Write results
                 # xyxy是预测框左上角和右下角坐标
-                for *xyxy, conf, cls in enumerate(reversed(zip(p_boxes, p_scores, p_labels))):
+                for si, (*xyxy, conf, cls) in enumerate(zip(p_boxes, p_scores, p_labels)):
+                    #xyxy = xyxy[0].tolist()
+                    #print(xyxy)
+                    #print(conf)
+                    #print(cls)
                     if save_txt:  # Write to file
                         xywh = (xyxy2xywh(torch.tensor(xyxy).view(1, 4)) / gn).view(-1).tolist()  # normalized xywh
                         line = (cls, *xywh, conf) if opt.save_conf else (cls, *xywh)  # label format
