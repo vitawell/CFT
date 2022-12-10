@@ -209,7 +209,7 @@ class Model(nn.Module):
 
             if m.f == -4: # 如果输入为-4，表示输入为第二个模态
                 x = m(x2)
-            if m.f == -8: # 如果输入为-4，表示输入为第二个模态
+            elif m.f == -8: # 如果输入为-4，表示输入为第3个模态
                 x = m(x3)
             else:
                 x = m(x)  # run正向推理  执行每一层的forward函数(除Concat和Detect操作)
