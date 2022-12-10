@@ -27,7 +27,7 @@
 
 
 ##
-修改utils/datasets.py中添加加载3个模态数据。修改train.py中加载数据，增加models/yolo_test3.py
+修改utils/datasets.py中添加加载3个模态数据。增加train3.py中加载数据，增加models/yolo_test3.py
 
 
 ## CFT
