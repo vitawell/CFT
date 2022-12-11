@@ -374,24 +374,21 @@ def train_rgb_ir(hyp, opt, device, tb_writer=None):
                 
                 #loss, loss_items = compute_loss(pred, targets.to(device))  # loss scaled by batch_size
                 
-                ### 分别计算loss？
+                ### 分别计算loss
                 pred1 = pred[0]
                 pred2 = pred[1]
-                #pred3 = pred[2]
+                pred3 = pred[2]
                 
                 loss1, loss_items1 = compute_loss(pred1, targets.to(device))
                 loss2, loss_items2 = compute_loss(pred2, targets.to(device))
-                #loss3, loss_items3 = compute_loss(pred3, targets.to(device))
+                loss3, loss_items3 = compute_loss(pred3, targets.to(device))
                 
-                a,b = 1, 1
-                loss = loss1 * a + loss2 * b
-                loss_items = loss_items1* a + loss_items2 * b
-                #a,b,c = 1, 0.5, 1 #loss权重
-                #loss = loss1 * a + loss2 * b + loss3 * c
-                #loss_items = loss_items1* a + loss_items2 * b + loss_items3 * c
-                
-                #loss = loss1 * 0.5 + loss2 * 0.5
-                #loss_items = loss_items1* 0.5 + loss_items2 * 0.5
+                #a,b = 1, 1
+                #loss = loss1 * a + loss2 * b
+                #loss_items = loss_items1* a + loss_items2 * b
+                a,b,c = 0.5, 0.5, 0.5  #loss权重
+                loss = loss1 * a + loss2 * b + loss3 * c
+                loss_items = loss_items1* a + loss_items2 * b + loss_items3 * c
                 
                 ###
                 if rank != -1:
