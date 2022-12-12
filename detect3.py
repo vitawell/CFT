@@ -119,7 +119,7 @@ def detect(opt):
             
         # Process detections
         ### 3个detect融合？
-        for si, (im0, model1_dets, model2_dets, model3_dets) in enumerate(zip(img, model1_out, model2_out, model3_out)):
+        for si, (im0, model1_dets, model2_dets, model3_dets) in enumerate(zip(img, pred1, pred2, pred3)):
             #
             #print(im0.shape)  #用img torch.Size([6, 384, 672])
             #用img_rgb torch.Size([3, 384, 672])
