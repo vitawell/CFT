@@ -125,7 +125,11 @@ def detect(opt):
             #用img_rgb torch.Size([3, 384, 672])
             im0 = im0.detach().cpu().numpy() * 255
             im0 = im0.transpose((1,2,0)).astype(np.uint8).copy()
-            #concat two model's outputs
+            
+            width = im0.shape[1]
+            height = im0.shape[0]
+            
+            
             if len(model3_dets):
                 model3_dets[:, :4] = scale_coords(img.shape[2:], model3_dets[:, :4], im0.shape).round()
                 
