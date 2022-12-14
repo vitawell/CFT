@@ -176,6 +176,12 @@ def test(data,
 #             train_out = train_out[0] #将三个detect结果concat
             
             
+
+        # 6.5、统计每张图片的真实框、预测框信息  Statistics per image
+        # 为每张图片做统计，写入预测信息到txt文件，生成json文件字典，统计tp等
+        # out: list{bs}  [300, 6] [42, 6] [300, 6] [300, 6]  [pred_obj_num, x1y1x2y2+object_conf+cls]
+        
+        if len(out)==3:
             ## Inference
             model1_out = out[0]  #
             model2_out = out[1]  #
@@ -231,12 +237,7 @@ def test(data,
             #model2_out = model2_out + model1_out
             #print(len(model2_out))  #32!
             
-
-        # 6.5、统计每张图片的真实框、预测框信息  Statistics per image
-        # 为每张图片做统计，写入预测信息到txt文件，生成json文件字典，统计tp等
-        # out: list{bs}  [300, 6] [42, 6] [300, 6] [300, 6]  [pred_obj_num, x1y1x2y2+object_conf+cls]
-        
-        if len(dout)==2:
+            
             ### 3个detect融合？
             for si, (im0, model1_dets, model2_dets, model3_dets) in enumerate(zip(img_rgb, model1_out, model2_out, model3_out)):
                 #
@@ -261,37 +262,37 @@ def test(data,
                 if len(model3_dets)>0 and len(model2_dets)>0 and len(model1_dets)>0:
                     #print(333)  
                     ##example_wbf_3_models默认iou_thr=0.55，大于该值的框才融合？改为开头设置的iou_thres？
-                    boxes, scores, labels = example_wbf_3_models(model3_dets.detach().cpu().numpy(), model2_dets.detach().cpu().numpy(), model1_dets.detach().cpu().numpy(), im0, iou_thr=0.6)
+                    boxes, scores, labels = example_wbf_3_models(model3_dets.detach().cpu().numpy(), model2_dets.detach().cpu().numpy(), model1_dets.detach().cpu().numpy(), im0, iou_thr=0.55)
                     boxes[:,0], boxes[:,2] = boxes[:,0] * width, boxes[:,2] * width
                     boxes[:,1], boxes[:,3] = boxes[:,1] * height, boxes[:,3] * height
 
                 elif len(model3_dets)>0 and len(model2_dets)>0:
-                    boxes, scores, labels = example_wbf_2_models(model3_dets.detach().cpu().numpy(), model2_dets.detach().cpu().numpy(), im0, iou_thr=0.6)
+                    boxes, scores, labels = example_wbf_2_models(model3_dets.detach().cpu().numpy(), model2_dets.detach().cpu().numpy(), im0, iou_thr=0.55)
                     boxes[:,0], boxes[:,2] = boxes[:,0] * width, boxes[:,2] * width
                     boxes[:,1], boxes[:,3] = boxes[:,1] * height, boxes[:,3] * height
 
                 elif len(model3_dets)>0 and len(model1_dets)>0:
-                    boxes, scores, labels = example_wbf_2_models(model3_dets.detach().cpu().numpy(), model1_dets.detach().cpu().numpy(), im0, iou_thr=0.6)
+                    boxes, scores, labels = example_wbf_2_models(model3_dets.detach().cpu().numpy(), model1_dets.detach().cpu().numpy(), im0, iou_thr=0.55)
                     boxes[:,0], boxes[:,2] = boxes[:,0] * width, boxes[:,2] * width
                     boxes[:,1], boxes[:,3] = boxes[:,1] * height, boxes[:,3] * height
 
                 elif len(model2_dets)>0 and len(model1_dets)>0:
-                    boxes, scores, labels = example_wbf_2_models(model2_dets.detach().cpu().numpy(), model1_dets.detach().cpu().numpy(), im0, iou_thr=0.6)
+                    boxes, scores, labels = example_wbf_2_models(model2_dets.detach().cpu().numpy(), model1_dets.detach().cpu().numpy(), im0, iou_thr=0.55)
                     boxes[:,0], boxes[:,2] = boxes[:,0] * width, boxes[:,2] * width
                     boxes[:,1], boxes[:,3] = boxes[:,1] * height, boxes[:,3] * height
 
                 elif len(model3_dets)>0:
-                    boxes, scores, labels = example_wbf_1_model(model3_dets.detach().cpu().numpy(), im0, iou_thr=0.6)
+                    boxes, scores, labels = example_wbf_1_model(model3_dets.detach().cpu().numpy(), im0, iou_thr=0.55)
                     boxes[:,0], boxes[:,2] = boxes[:,0] * width, boxes[:,2] * width
                     boxes[:,1], boxes[:,3] = boxes[:,1] * height, boxes[:,3] * height
 
                 elif len(model2_dets)>0:
-                    boxes, scores, labels = example_wbf_1_model(model2_dets.detach().cpu().numpy(), im0, iou_thr=0.6)
+                    boxes, scores, labels = example_wbf_1_model(model2_dets.detach().cpu().numpy(), im0, iou_thr=0.55)
                     boxes[:,0], boxes[:,2] = boxes[:,0] * width, boxes[:,2] * width
                     boxes[:,1], boxes[:,3] = boxes[:,1] * height, boxes[:,3] * height
 
                 elif len(model1_dets)>0:
-                    boxes, scores, labels = example_wbf_1_model(model1_dets.detach().cpu().numpy(), im0, iou_thr=0.6)
+                    boxes, scores, labels = example_wbf_1_model(model1_dets.detach().cpu().numpy(), im0, iou_thr=0.55)
                     boxes[:,0], boxes[:,2] = boxes[:,0] * width, boxes[:,2] * width
                     boxes[:,1], boxes[:,3] = boxes[:,1] * height, boxes[:,3] * height
 
@@ -390,7 +391,56 @@ def test(data,
                 callbacks.run('on_val_image_end', pred, predn, path, names, img_rgb[si]) ##早停训练？
                 
                 
-        elif len(dout)==1:     
+        elif len(out)==2:    
+            ## Inference
+            model1_out = out[0]  #
+            model2_out = out[1]  #
+            #model3_out = out[2]  #
+            
+            #print(len(model1_out))  #16
+            #print(len(model2_out))  #16
+            #print(len(model3_out))  #16
+            
+            t0 += time_synchronized() - t  #模型时间
+
+#             # 计算验证损失
+#             # compute_loss不为空 说明正在执行train.py  根据传入的compute_loss计算损失值
+#             if compute_loss:
+#                 loss += compute_loss([x.float() for x in train_out], targets)[1][:3]  # box, obj, cls
+            
+            train_out = []  ##训练train_out
+            for k in range(0,len(dout)):
+                train_out.append(dout[k][1])
+                
+            loss_items1 = compute_loss([x.float() for x in train_out[0]], targets.to(device))[1][:3]
+            loss_items2 = compute_loss([x.float() for x in train_out[1]], targets.to(device))[1][:3]
+            #loss_items3 = compute_loss([x.float() for x in train_out[2]], targets.to(device))[1][:3]
+            
+            #loss = []
+            ##list元素相加
+            #for m,n,l in zip(loss_items1,loss_items2, loss_items3):
+                #loss_items= m *0.2 + n *0.3 + l* 0.5
+                #loss.append(loss_items)
+            a,b = 0.5, 0.5
+            loss = loss_items1 * a + loss_items2 * b
+            #a,b,c = 0.5, 0.5, 0.5
+            #loss = loss_items1 * a + loss_items2 * b + loss_items3 * c
+                
+            
+            # Run NMS
+            # 将真实框target的xywh(因为target是在labelimg中做了归一化的)映射到img(test)尺寸
+            targets[:, 2:] *= torch.Tensor([width, height, width, height]).to(device)  # to pixels
+            # 是在NMS之前将数据集标签targets添加到模型预测中
+            # 这允许在数据集中自动标记(for autolabelling)其他对象(在pred中混入gt) 并且mAP反映了新的混合标签
+            # targets: [num_target, img_index+class_index+xywh] = [31, 6]
+            # lb: {list: bs} 第一张图片的target[17, 5] 第二张[1, 5] 第三张[7, 5] 第四张[6, 5]
+            lb = [targets[targets[:, 0] == i, 1:] for i in range(nb)] if save_hybrid else []  # for autolabelling
+            t = time_synchronized()
+            model1_out = non_max_suppression(model1_out, conf_thres, iou_thres, labels=lb, multi_label=True, agnostic=single_cls)
+            model2_out = non_max_suppression(model2_out, conf_thres, iou_thres, labels=lb, multi_label=True, agnostic=single_cls)
+            #model3_out = non_max_suppression(model3_out, conf_thres, iou_thres, labels=lb, multi_label=True, agnostic=single_cls)
+            
+            
             ## 2个detect融合
             ## zip将迭代元素打包成元组，若长度不一舍去长的部分。
             for si, (im0, model2_dets, model1_dets) in enumerate(zip(img_rgb, model2_out, model1_out)):
