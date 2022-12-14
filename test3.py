@@ -236,216 +236,302 @@ def test(data,
         # 为每张图片做统计，写入预测信息到txt文件，生成json文件字典，统计tp等
         # out: list{bs}  [300, 6] [42, 6] [300, 6] [300, 6]  [pred_obj_num, x1y1x2y2+object_conf+cls]
         
-        ### 3个detect融合？
-        for si, (im0, model1_dets, model2_dets, model3_dets) in enumerate(zip(img_rgb, model1_out, model2_out, model3_out)):
-            #
-            #print(im0.shape)  #用img torch.Size([6, 384, 672])
-            #用img_rgb torch.Size([3, 384, 672])
-            im0 = im0.detach().cpu().numpy() * 255
-            im0 = im0.transpose((1,2,0)).astype(np.uint8).copy()
-            #concat two model's outputs
-            if len(model3_dets):
-                model3_dets[:, :4] = scale_coords(img.shape[2:], model3_dets[:, :4], im0.shape).round()
-                
-            if len(model2_dets):  #若model2不为空
-                model2_dets[:, :4] = scale_coords(img.shape[2:], model2_dets[:, :4], im0.shape).round()
+        if len(dout)==2:
+            ### 3个detect融合？
+            for si, (im0, model1_dets, model2_dets, model3_dets) in enumerate(zip(img_rgb, model1_out, model2_out, model3_out)):
+                #
+                #print(im0.shape)  #用img torch.Size([6, 384, 672])
+                #用img_rgb torch.Size([3, 384, 672])
+                im0 = im0.detach().cpu().numpy() * 255
+                im0 = im0.transpose((1,2,0)).astype(np.uint8).copy()
+                #concat two model's outputs
+                if len(model3_dets):
+                    model3_dets[:, :4] = scale_coords(img.shape[2:], model3_dets[:, :4], im0.shape).round()
 
-            if len(model1_dets):
-                model1_dets[:, :4] = scale_coords(img.shape[2:], model1_dets[:, :4], im0.shape).round()
-            
-            # Flag for indicating detection success 检测成功标志
-            #detect_success = False
-            
-            #iou_thres = 0.55
-            if len(model3_dets)>0 and len(model2_dets)>0 and len(model1_dets)>0:
-                #print(333)  
-                ##example_wbf_3_models默认iou_thr=0.55，大于该值的框才融合？改为开头设置的iou_thres？
-                boxes, scores, labels = example_wbf_3_models(model3_dets.detach().cpu().numpy(), model2_dets.detach().cpu().numpy(), model1_dets.detach().cpu().numpy(), im0, iou_thr=0.6)
-                boxes[:,0], boxes[:,2] = boxes[:,0] * width, boxes[:,2] * width
-                boxes[:,1], boxes[:,3] = boxes[:,1] * height, boxes[:,3] * height
-                
-            elif len(model3_dets)>0 and len(model2_dets)>0:
-                boxes, scores, labels = example_wbf_2_models(model3_dets.detach().cpu().numpy(), model2_dets.detach().cpu().numpy(), im0, iou_thr=0.6)
-                boxes[:,0], boxes[:,2] = boxes[:,0] * width, boxes[:,2] * width
-                boxes[:,1], boxes[:,3] = boxes[:,1] * height, boxes[:,3] * height
-                
-            elif len(model3_dets)>0 and len(model1_dets)>0:
-                boxes, scores, labels = example_wbf_2_models(model3_dets.detach().cpu().numpy(), model1_dets.detach().cpu().numpy(), im0, iou_thr=0.6)
-                boxes[:,0], boxes[:,2] = boxes[:,0] * width, boxes[:,2] * width
-                boxes[:,1], boxes[:,3] = boxes[:,1] * height, boxes[:,3] * height
-            
-            elif len(model2_dets)>0 and len(model1_dets)>0:
-                boxes, scores, labels = example_wbf_2_models(model2_dets.detach().cpu().numpy(), model1_dets.detach().cpu().numpy(), im0, iou_thr=0.6)
-                boxes[:,0], boxes[:,2] = boxes[:,0] * width, boxes[:,2] * width
-                boxes[:,1], boxes[:,3] = boxes[:,1] * height, boxes[:,3] * height
-                
-            elif len(model3_dets)>0:
-                boxes, scores, labels = example_wbf_1_model(model3_dets.detach().cpu().numpy(), im0, iou_thr=0.6)
-                boxes[:,0], boxes[:,2] = boxes[:,0] * width, boxes[:,2] * width
-                boxes[:,1], boxes[:,3] = boxes[:,1] * height, boxes[:,3] * height
-                
-            elif len(model2_dets)>0:
-                boxes, scores, labels = example_wbf_1_model(model2_dets.detach().cpu().numpy(), im0, iou_thr=0.6)
-                boxes[:,0], boxes[:,2] = boxes[:,0] * width, boxes[:,2] * width
-                boxes[:,1], boxes[:,3] = boxes[:,1] * height, boxes[:,3] * height
-                
-            elif len(model1_dets)>0:
-                boxes, scores, labels = example_wbf_1_model(model1_dets.detach().cpu().numpy(), im0, iou_thr=0.6)
-                boxes[:,0], boxes[:,2] = boxes[:,0] * width, boxes[:,2] * width
-                boxes[:,1], boxes[:,3] = boxes[:,1] * height, boxes[:,3] * height
-                
-            else: ##没有时返回0
-                boxes, scores, labels = np.zeros((0, 4)), np.zeros((0,)), np.zeros((0,))
-                #boxes = boxes + boxes2
-                #scores = scores + scores2
-                #labels = labels + labels2
-                
-            for box in boxes:
-                cv2.rectangle(im0, (int(box[0]), int(box[1])), (int(box[2]), int(box[3])), (0,0,255), 3)
-               
-                
-                
-#         ## 2个detect融合
-#         ## zip将迭代元素打包成元组，若长度不一舍去长的部分。
-#         for si, (im0, model2_dets, model1_dets) in enumerate(zip(img_rgb, model2_out, model1_out)):
-#             #
-#             #print(im0.shape)  #用img torch.Size([6, 384, 672])
-#             #用img_rgb torch.Size([3, 384, 672])
-#             im0 = im0.detach().cpu().numpy() * 255
-#             im0 = im0.transpose((1,2,0)).astype(np.uint8).copy()
-#             #print(im0.shape)  #(384, 672, 3)
-#             #后面example_wbf_1_models里面 img_height, img_width = img.shape[1:]
-            
-#             #model2为空?
-#             if len(model2_dets):  #若model2不为空
-#                 #scale_coords将坐标coords(x1y1x2y2)从img_shape缩放到im0_shape尺寸（尺寸一致）
-#                 model2_dets[:, :4] = scale_coords(img.shape[2:], model2_dets[:, :4], im0.shape).round()
-#                 ##归一化坐标到[0,1]，后面example_wbf_2_models里面会归一化
-#                 ##为什么坐标会超过1？
-#                 #model2_dets[:, 0],  model2_dets[:, 2] = model2_dets[:, 0]/ width,  model2_dets[:, 2]/ width
-#                 #model2_dets[:, 1],  model2_dets[:, 3] = model2_dets[:, 0]/ height,  model2_dets[:, 2]/ height
+                if len(model2_dets):  #若model2不为空
+                    model2_dets[:, :4] = scale_coords(img.shape[2:], model2_dets[:, :4], im0.shape).round()
 
-#             if len(model1_dets):
-#                 model1_dets[:, :4] = scale_coords(img.shape[2:], model1_dets[:, :4], im0.shape).round()
-#                 #model1_dets[:, 0],  model1_dets[:, 2] = model1_dets[:, 0]/ width,  model1_dets[:, 2]/ width
-#                 #model1_dets[:, 1],  model1_dets[:, 3] = model1_dets[:, 0]/ height,  model1_dets[:, 2]/ height
-            
-#             # Flag for indicating detection success 检测成功标志
-#             #detect_success = False
-            
-             
-#             #print(len(model2_dets))  #0?  #model2为空?
-#             #print(len(model1_dets))  #1
+                if len(model1_dets):
+                    model1_dets[:, :4] = scale_coords(img.shape[2:], model1_dets[:, :4], im0.shape).round()
+
+                # Flag for indicating detection success 检测成功标志
+                #detect_success = False
+
+                #iou_thres = 0.55
+                if len(model3_dets)>0 and len(model2_dets)>0 and len(model1_dets)>0:
+                    #print(333)  
+                    ##example_wbf_3_models默认iou_thr=0.55，大于该值的框才融合？改为开头设置的iou_thres？
+                    boxes, scores, labels = example_wbf_3_models(model3_dets.detach().cpu().numpy(), model2_dets.detach().cpu().numpy(), model1_dets.detach().cpu().numpy(), im0, iou_thr=0.6)
+                    boxes[:,0], boxes[:,2] = boxes[:,0] * width, boxes[:,2] * width
+                    boxes[:,1], boxes[:,3] = boxes[:,1] * height, boxes[:,3] * height
+
+                elif len(model3_dets)>0 and len(model2_dets)>0:
+                    boxes, scores, labels = example_wbf_2_models(model3_dets.detach().cpu().numpy(), model2_dets.detach().cpu().numpy(), im0, iou_thr=0.6)
+                    boxes[:,0], boxes[:,2] = boxes[:,0] * width, boxes[:,2] * width
+                    boxes[:,1], boxes[:,3] = boxes[:,1] * height, boxes[:,3] * height
+
+                elif len(model3_dets)>0 and len(model1_dets)>0:
+                    boxes, scores, labels = example_wbf_2_models(model3_dets.detach().cpu().numpy(), model1_dets.detach().cpu().numpy(), im0, iou_thr=0.6)
+                    boxes[:,0], boxes[:,2] = boxes[:,0] * width, boxes[:,2] * width
+                    boxes[:,1], boxes[:,3] = boxes[:,1] * height, boxes[:,3] * height
+
+                elif len(model2_dets)>0 and len(model1_dets)>0:
+                    boxes, scores, labels = example_wbf_2_models(model2_dets.detach().cpu().numpy(), model1_dets.detach().cpu().numpy(), im0, iou_thr=0.6)
+                    boxes[:,0], boxes[:,2] = boxes[:,0] * width, boxes[:,2] * width
+                    boxes[:,1], boxes[:,3] = boxes[:,1] * height, boxes[:,3] * height
+
+                elif len(model3_dets)>0:
+                    boxes, scores, labels = example_wbf_1_model(model3_dets.detach().cpu().numpy(), im0, iou_thr=0.6)
+                    boxes[:,0], boxes[:,2] = boxes[:,0] * width, boxes[:,2] * width
+                    boxes[:,1], boxes[:,3] = boxes[:,1] * height, boxes[:,3] * height
+
+                elif len(model2_dets)>0:
+                    boxes, scores, labels = example_wbf_1_model(model2_dets.detach().cpu().numpy(), im0, iou_thr=0.6)
+                    boxes[:,0], boxes[:,2] = boxes[:,0] * width, boxes[:,2] * width
+                    boxes[:,1], boxes[:,3] = boxes[:,1] * height, boxes[:,3] * height
+
+                elif len(model1_dets)>0:
+                    boxes, scores, labels = example_wbf_1_model(model1_dets.detach().cpu().numpy(), im0, iou_thr=0.6)
+                    boxes[:,0], boxes[:,2] = boxes[:,0] * width, boxes[:,2] * width
+                    boxes[:,1], boxes[:,3] = boxes[:,1] * height, boxes[:,3] * height
+
+                else: ##没有时返回0
+                    boxes, scores, labels = np.zeros((0, 4)), np.zeros((0,)), np.zeros((0,))
+                    #boxes = boxes + boxes2
+                    #scores = scores + scores2
+                    #labels = labels + labels2
+
+                for box in boxes:
+                    cv2.rectangle(im0, (int(box[0]), int(box[1])), (int(box[2]), int(box[3])), (0,0,255), 3)
                 
-#             if len(model2_dets)>0 and len(model1_dets)>0:
-#                 boxes, scores, labels = example_wbf_2_models(model2_dets.detach().cpu().numpy(), model1_dets.detach().cpu().numpy(), im0)
-#                 #通过im0获取图片width、height
-#                 boxes[:,0], boxes[:,2] = boxes[:,0] * width, boxes[:,2] * width
-#                 boxes[:,1], boxes[:,3] = boxes[:,1] * height, boxes[:,3] * height
-#                 for box in boxes:
-#                     cv2.rectangle(im0, (int(box[0]), int(box[1])), (int(box[2]), int(box[3])), (0,0,255), 3)
-#                 #detect_success = True
-#             elif len(model2_dets)>0:
-#                 boxes, scores, labels = example_wbf_1_model(model2_dets.detach().cpu().numpy(), im0)
-#                 boxes[:,0], boxes[:,2] = boxes[:,0] * width, boxes[:,2] * width
-#                 boxes[:,1], boxes[:,3] = boxes[:,1] * height, boxes[:,3] * height
-#                 for box in boxes:
-#                     cv2.rectangle(im0, (int(box[0]), int(box[1])), (int(box[2]), int(box[3])), (0,0,255), 3)
-#                 #detect_success = True
-#             elif len(model1_dets)>0:
-#                 boxes, scores, labels = example_wbf_1_model(model1_dets.detach().cpu().numpy(), im0)
-#                 boxes[:,0], boxes[:,2] = boxes[:,0] * width, boxes[:,2] * width
-#                 boxes[:,1], boxes[:,3] = boxes[:,1] * height, boxes[:,3] * height
-#                 for box in boxes:
-#                     cv2.rectangle(im0, (int(box[0]), int(box[1])), (int(box[2]), int(box[3])), (0,0,255), 3)
-#                 #detect_success = True
-#             else: ##没有时返回0
-#                 boxes, scores, labels = np.zeros((0, 4)), np.zeros((0,)), np.zeros((0,))
-            
-            ###
-            p_boxes, p_scores, p_labels = boxes, scores, labels
-            # Result visualization
-            #if detect_success is True:
-                #cv2.imshow("detected_image", im0)
-                #cv2.waitKey(0)
-            
-            t1 += time_synchronized() - t  # 累计NMS时间
-            
-            # 获取第si张图片的gt标签信息 包括class, x, y, w, h    target[:, 0]为标签属于哪张图片的编号
-            labels = targets[targets[:, 0] == si, 1:]   # [:, class+xywh]
-            nl = len(labels)    # 第si张图片的gt个数
-            # 获取标签类别
-            tcls = labels[:, 0].tolist() if nl else []  # target class
-            path,shape = Path(paths[si]), shapes[si][0]
-            # 统计测试图片数量 +1
-            seen += 1
-            
-            # 如果预测为空，则添加空的信息到stats里
-            if len(boxes) == 0:
+                ###
+                p_boxes, p_scores, p_labels = boxes, scores, labels
+                # Result visualization
+                #if detect_success is True:
+                    #cv2.imshow("detected_image", im0)
+                    #cv2.waitKey(0)
+
+                t1 += time_synchronized() - t  # 累计NMS时间
+
+                # 获取第si张图片的gt标签信息 包括class, x, y, w, h    target[:, 0]为标签属于哪张图片的编号
+                labels = targets[targets[:, 0] == si, 1:]   # [:, class+xywh]
+                nl = len(labels)    # 第si张图片的gt个数
+                # 获取标签类别
+                tcls = labels[:, 0].tolist() if nl else []  # target class
+                path,shape = Path(paths[si]), shapes[si][0]
+                # 统计测试图片数量 +1
+                seen += 1
+
+                # 如果预测为空，则添加空的信息到stats里
+                if len(boxes) == 0:
+                    if nl:
+                        stats.append((torch.zeros(0, niou, dtype=torch.bool), torch.Tensor(), torch.Tensor(), tcls))
+                    continue
+
+                # Predictions
+                #print(p_boxes.shape) #(1,4)
+                if len(p_labels.shape)>1: #(1,) #中途报错维度不一致
+                    #print(p_labels.shape) #torch.Size([27, 5]) ？怎么会变成二维
+                    #print(p_labels[0])    #tensor([ 15.00000, 248.25023, 158.49985,  41.16672,  37.00008], device='cuda:0')
+                    ##只取第1列
+                    n0 = p_boxes.shape[0]  #中途报错size不一致
+                    p_labels = p_labels[:n0,0]
+
+                ## 报错，/home/ubuntu/miniconda3/envs/WBF/lib/python3.6/site-packages/torch/_tensor.py in __array__
+                ## 将报错代码 return self.numpy()改为self.cpu().numpy()即可
+                pred = np.concatenate([p_boxes, np.expand_dims(p_scores, axis=1), np.expand_dims(p_labels, axis=1)], axis=1)
+                pred = torch.from_numpy(pred).to(device)
+                predn = pred.clone()
+
+                # 将预测坐标映射到原图img中
+                scale_coords(img[si].shape[1:], predn[:, :4], shapes[si][0], shapes[si][1])  # native-space pred
+
+                # Evaluate 评估
                 if nl:
-                    stats.append((torch.zeros(0, niou, dtype=torch.bool), torch.Tensor(), torch.Tensor(), tcls))
-                continue
+                    tbox = xywh2xyxy(labels[:, 1:5])  # target boxes
+                    #scale_coords(im[si].shape[1:], tbox, shape, shapes[si][1])  # native-space labels
+                    scale_coords(img_rgb[si].shape[1:], tbox, shape, shapes[si][1])
+                    labelsn = torch.cat((labels[:, 0:1], tbox), 1)  # native-space labels
+                    correct = process_batch(predn, labelsn, iouv)
+                    if plots:
+                        confusion_matrix.process_batch(predn, labelsn)
+                else:
+                    correct = torch.zeros(pred.shape[0], niou, dtype=torch.bool)
+                # 将每张图片的预测结果统计到stats中 Append statistics
+                # stats: correct, conf, pcls, tcls   bs个 correct, conf, pcls, tcls
+                # correct: [pred_num, 10] bool 当前图片每一个预测框在每一个iou条件下是否是TP
+                # pred[:, 4]: [pred_num, 1] 当前图片每一个预测框的conf
+                # pred[:, 5]: [pred_num, 1] 当前图片每一个预测框的类别
+                # tcls: [gt_num, 1] 当前图片所有gt框的class    
+                stats.append((correct.cpu(), pred[:, 4].cpu(), pred[:, 5].cpu(), tcls))  # (correct, conf, pcls, tcls)
 
-            # Predictions
-            #print(p_boxes.shape) #(1,4)
-            if len(p_labels.shape)>1: #(1,) #中途报错维度不一致
-                #print(p_labels.shape) #torch.Size([27, 5]) ？怎么会变成二维
-                #print(p_labels[0])    #tensor([ 15.00000, 248.25023, 158.49985,  41.16672,  37.00008], device='cuda:0')
-                ##只取第1列
-                n0 = p_boxes.shape[0]  #中途报错size不一致
-                p_labels = p_labels[:n0,0]
+                # Append to text file  保存预测信息到txt文件
+                if save_txt:
+                    # gn = [w, h, w, h] 对应图片的宽高  用于后面归一化
+                    gn = torch.tensor(shapes[si][0])[[1, 0, 1, 0]]  # normalization gain whwh
+                    for *xyxy, conf, cls in predn.tolist():
+                        # xyxy -> xywh 并作归一化处理
+                        xywh = (xyxy2xywh(torch.tensor(xyxy).view(1, 4)) / gn).view(-1).tolist()  # normalized xywh
+                        line = (cls, *xywh, conf) if save_conf else (cls, *xywh)  # label format
+                        # 保存预测类别和坐标值到对应图片id.txt文件中
+                        with open(save_dir / 'labels' / (path.stem + '.txt'), 'a') as f:
+                            f.write(('%g ' * len(line)).rstrip() % line + '\n')
+                # Append to pycocotools JSON dictionary  将预测信息保存到coco格式的json字典(后面存入json文件)
+                if save_json:
+                    # [{"image_id": 42, "category_id": 18, "bbox": [258.15, 41.29, 348.26, 243.78], "score": 0.236}, ...
+                    image_id = int(path.stem) if path.stem.isnumeric() else path.stem
+                    box = xyxy2xywh(predn[:, :4])  # xywh
+                    box[:, :2] -= box[:, 2:] / 2  # xy center to top-left corner
+                    for p, b in zip(pred.tolist(), box.tolist()):
+                        jdict.append({'image_id': image_id,
+                                      'category_id': coco91class[int(p[5])] if is_coco else int(p[5]),
+                                      'bbox': [round(x, 3) for x in b],
+                                      'score': round(p[4], 5)})
+                callbacks.run('on_val_image_end', pred, predn, path, names, img_rgb[si]) ##早停训练？
+                
+                
+        elif len(dout)==1:     
+            ## 2个detect融合
+            ## zip将迭代元素打包成元组，若长度不一舍去长的部分。
+            for si, (im0, model2_dets, model1_dets) in enumerate(zip(img_rgb, model2_out, model1_out)):
+                #
+                #print(im0.shape)  #用img torch.Size([6, 384, 672])
+                #用img_rgb torch.Size([3, 384, 672])
+                im0 = im0.detach().cpu().numpy() * 255
+                im0 = im0.transpose((1,2,0)).astype(np.uint8).copy()
+                #print(im0.shape)  #(384, 672, 3)
+                #后面example_wbf_1_models里面 img_height, img_width = img.shape[1:]
+
+                #model2为空?
+                if len(model2_dets):  #若model2不为空
+                    #scale_coords将坐标coords(x1y1x2y2)从img_shape缩放到im0_shape尺寸（尺寸一致）
+                    model2_dets[:, :4] = scale_coords(img.shape[2:], model2_dets[:, :4], im0.shape).round()
+                    ##归一化坐标到[0,1]，后面example_wbf_2_models里面会归一化
+                    ##为什么坐标会超过1？
+                    #model2_dets[:, 0],  model2_dets[:, 2] = model2_dets[:, 0]/ width,  model2_dets[:, 2]/ width
+                    #model2_dets[:, 1],  model2_dets[:, 3] = model2_dets[:, 0]/ height,  model2_dets[:, 2]/ height
+
+                if len(model1_dets):
+                    model1_dets[:, :4] = scale_coords(img.shape[2:], model1_dets[:, :4], im0.shape).round()
+                    #model1_dets[:, 0],  model1_dets[:, 2] = model1_dets[:, 0]/ width,  model1_dets[:, 2]/ width
+                    #model1_dets[:, 1],  model1_dets[:, 3] = model1_dets[:, 0]/ height,  model1_dets[:, 2]/ height
+
+                # Flag for indicating detection success 检测成功标志
+                #detect_success = False
+
+
+                #print(len(model2_dets))  #0?  #model2为空?
+                #print(len(model1_dets))  #1
+
+                if len(model2_dets)>0 and len(model1_dets)>0:
+                    boxes, scores, labels = example_wbf_2_models(model2_dets.detach().cpu().numpy(), model1_dets.detach().cpu().numpy(), im0)
+                    #通过im0获取图片width、height
+                    boxes[:,0], boxes[:,2] = boxes[:,0] * width, boxes[:,2] * width
+                    boxes[:,1], boxes[:,3] = boxes[:,1] * height, boxes[:,3] * height
+                    for box in boxes:
+                        cv2.rectangle(im0, (int(box[0]), int(box[1])), (int(box[2]), int(box[3])), (0,0,255), 3)
+                    #detect_success = True
+                elif len(model2_dets)>0:
+                    boxes, scores, labels = example_wbf_1_model(model2_dets.detach().cpu().numpy(), im0)
+                    boxes[:,0], boxes[:,2] = boxes[:,0] * width, boxes[:,2] * width
+                    boxes[:,1], boxes[:,3] = boxes[:,1] * height, boxes[:,3] * height
+                    for box in boxes:
+                        cv2.rectangle(im0, (int(box[0]), int(box[1])), (int(box[2]), int(box[3])), (0,0,255), 3)
+                    #detect_success = True
+                elif len(model1_dets)>0:
+                    boxes, scores, labels = example_wbf_1_model(model1_dets.detach().cpu().numpy(), im0)
+                    boxes[:,0], boxes[:,2] = boxes[:,0] * width, boxes[:,2] * width
+                    boxes[:,1], boxes[:,3] = boxes[:,1] * height, boxes[:,3] * height
+                    for box in boxes:
+                        cv2.rectangle(im0, (int(box[0]), int(box[1])), (int(box[2]), int(box[3])), (0,0,255), 3)
+                    #detect_success = True
+                else: ##没有时返回0
+                    boxes, scores, labels = np.zeros((0, 4)), np.zeros((0,)), np.zeros((0,))
             
-            ## 报错，/home/ubuntu/miniconda3/envs/WBF/lib/python3.6/site-packages/torch/_tensor.py in __array__
-            ## 将报错代码 return self.numpy()改为self.cpu().numpy()即可
-            pred = np.concatenate([p_boxes, np.expand_dims(p_scores, axis=1), np.expand_dims(p_labels, axis=1)], axis=1)
-            pred = torch.from_numpy(pred).to(device)
-            predn = pred.clone()
-            
-            # 将预测坐标映射到原图img中
-            scale_coords(img[si].shape[1:], predn[:, :4], shapes[si][0], shapes[si][1])  # native-space pred
+                ###
+                p_boxes, p_scores, p_labels = boxes, scores, labels
+                # Result visualization
+                #if detect_success is True:
+                    #cv2.imshow("detected_image", im0)
+                    #cv2.waitKey(0)
 
-            # Evaluate 评估
-            if nl:
-                tbox = xywh2xyxy(labels[:, 1:5])  # target boxes
-                #scale_coords(im[si].shape[1:], tbox, shape, shapes[si][1])  # native-space labels
-                scale_coords(img_rgb[si].shape[1:], tbox, shape, shapes[si][1])
-                labelsn = torch.cat((labels[:, 0:1], tbox), 1)  # native-space labels
-                correct = process_batch(predn, labelsn, iouv)
-                if plots:
-                    confusion_matrix.process_batch(predn, labelsn)
-            else:
-                correct = torch.zeros(pred.shape[0], niou, dtype=torch.bool)
-            # 将每张图片的预测结果统计到stats中 Append statistics
-            # stats: correct, conf, pcls, tcls   bs个 correct, conf, pcls, tcls
-            # correct: [pred_num, 10] bool 当前图片每一个预测框在每一个iou条件下是否是TP
-            # pred[:, 4]: [pred_num, 1] 当前图片每一个预测框的conf
-            # pred[:, 5]: [pred_num, 1] 当前图片每一个预测框的类别
-            # tcls: [gt_num, 1] 当前图片所有gt框的class    
-            stats.append((correct.cpu(), pred[:, 4].cpu(), pred[:, 5].cpu(), tcls))  # (correct, conf, pcls, tcls)
+                t1 += time_synchronized() - t  # 累计NMS时间
 
-            # Append to text file  保存预测信息到txt文件
-            if save_txt:
-                # gn = [w, h, w, h] 对应图片的宽高  用于后面归一化
-                gn = torch.tensor(shapes[si][0])[[1, 0, 1, 0]]  # normalization gain whwh
-                for *xyxy, conf, cls in predn.tolist():
-                    # xyxy -> xywh 并作归一化处理
-                    xywh = (xyxy2xywh(torch.tensor(xyxy).view(1, 4)) / gn).view(-1).tolist()  # normalized xywh
-                    line = (cls, *xywh, conf) if save_conf else (cls, *xywh)  # label format
-                    # 保存预测类别和坐标值到对应图片id.txt文件中
-                    with open(save_dir / 'labels' / (path.stem + '.txt'), 'a') as f:
-                        f.write(('%g ' * len(line)).rstrip() % line + '\n')
-            # Append to pycocotools JSON dictionary  将预测信息保存到coco格式的json字典(后面存入json文件)
-            if save_json:
-                # [{"image_id": 42, "category_id": 18, "bbox": [258.15, 41.29, 348.26, 243.78], "score": 0.236}, ...
-                image_id = int(path.stem) if path.stem.isnumeric() else path.stem
-                box = xyxy2xywh(predn[:, :4])  # xywh
-                box[:, :2] -= box[:, 2:] / 2  # xy center to top-left corner
-                for p, b in zip(pred.tolist(), box.tolist()):
-                    jdict.append({'image_id': image_id,
-                                  'category_id': coco91class[int(p[5])] if is_coco else int(p[5]),
-                                  'bbox': [round(x, 3) for x in b],
-                                  'score': round(p[4], 5)})
-            callbacks.run('on_val_image_end', pred, predn, path, names, img_rgb[si]) ##早停训练？
+                # 获取第si张图片的gt标签信息 包括class, x, y, w, h    target[:, 0]为标签属于哪张图片的编号
+                labels = targets[targets[:, 0] == si, 1:]   # [:, class+xywh]
+                nl = len(labels)    # 第si张图片的gt个数
+                # 获取标签类别
+                tcls = labels[:, 0].tolist() if nl else []  # target class
+                path,shape = Path(paths[si]), shapes[si][0]
+                # 统计测试图片数量 +1
+                seen += 1
+
+                # 如果预测为空，则添加空的信息到stats里
+                if len(boxes) == 0:
+                    if nl:
+                        stats.append((torch.zeros(0, niou, dtype=torch.bool), torch.Tensor(), torch.Tensor(), tcls))
+                    continue
+
+                # Predictions
+                #print(p_boxes.shape) #(1,4)
+                if len(p_labels.shape)>1: #(1,) #中途报错维度不一致
+                    #print(p_labels.shape) #torch.Size([27, 5]) ？怎么会变成二维
+                    #print(p_labels[0])    #tensor([ 15.00000, 248.25023, 158.49985,  41.16672,  37.00008], device='cuda:0')
+                    ##只取第1列
+                    n0 = p_boxes.shape[0]  #中途报错size不一致
+                    p_labels = p_labels[:n0,0]
+
+                ## 报错，/home/ubuntu/miniconda3/envs/WBF/lib/python3.6/site-packages/torch/_tensor.py in __array__
+                ## 将报错代码 return self.numpy()改为self.cpu().numpy()即可
+                pred = np.concatenate([p_boxes, np.expand_dims(p_scores, axis=1), np.expand_dims(p_labels, axis=1)], axis=1)
+                pred = torch.from_numpy(pred).to(device)
+                predn = pred.clone()
+
+                # 将预测坐标映射到原图img中
+                scale_coords(img[si].shape[1:], predn[:, :4], shapes[si][0], shapes[si][1])  # native-space pred
+
+                # Evaluate 评估
+                if nl:
+                    tbox = xywh2xyxy(labels[:, 1:5])  # target boxes
+                    #scale_coords(im[si].shape[1:], tbox, shape, shapes[si][1])  # native-space labels
+                    scale_coords(img_rgb[si].shape[1:], tbox, shape, shapes[si][1])
+                    labelsn = torch.cat((labels[:, 0:1], tbox), 1)  # native-space labels
+                    correct = process_batch(predn, labelsn, iouv)
+                    if plots:
+                        confusion_matrix.process_batch(predn, labelsn)
+                else:
+                    correct = torch.zeros(pred.shape[0], niou, dtype=torch.bool)
+                # 将每张图片的预测结果统计到stats中 Append statistics
+                # stats: correct, conf, pcls, tcls   bs个 correct, conf, pcls, tcls
+                # correct: [pred_num, 10] bool 当前图片每一个预测框在每一个iou条件下是否是TP
+                # pred[:, 4]: [pred_num, 1] 当前图片每一个预测框的conf
+                # pred[:, 5]: [pred_num, 1] 当前图片每一个预测框的类别
+                # tcls: [gt_num, 1] 当前图片所有gt框的class    
+                stats.append((correct.cpu(), pred[:, 4].cpu(), pred[:, 5].cpu(), tcls))  # (correct, conf, pcls, tcls)
+
+                # Append to text file  保存预测信息到txt文件
+                if save_txt:
+                    # gn = [w, h, w, h] 对应图片的宽高  用于后面归一化
+                    gn = torch.tensor(shapes[si][0])[[1, 0, 1, 0]]  # normalization gain whwh
+                    for *xyxy, conf, cls in predn.tolist():
+                        # xyxy -> xywh 并作归一化处理
+                        xywh = (xyxy2xywh(torch.tensor(xyxy).view(1, 4)) / gn).view(-1).tolist()  # normalized xywh
+                        line = (cls, *xywh, conf) if save_conf else (cls, *xywh)  # label format
+                        # 保存预测类别和坐标值到对应图片id.txt文件中
+                        with open(save_dir / 'labels' / (path.stem + '.txt'), 'a') as f:
+                            f.write(('%g ' * len(line)).rstrip() % line + '\n')
+                # Append to pycocotools JSON dictionary  将预测信息保存到coco格式的json字典(后面存入json文件)
+                if save_json:
+                    # [{"image_id": 42, "category_id": 18, "bbox": [258.15, 41.29, 348.26, 243.78], "score": 0.236}, ...
+                    image_id = int(path.stem) if path.stem.isnumeric() else path.stem
+                    box = xyxy2xywh(predn[:, :4])  # xywh
+                    box[:, :2] -= box[:, 2:] / 2  # xy center to top-left corner
+                    for p, b in zip(pred.tolist(), box.tolist()):
+                        jdict.append({'image_id': image_id,
+                                      'category_id': coco91class[int(p[5])] if is_coco else int(p[5]),
+                                      'bbox': [round(x, 3) for x in b],
+                                      'score': round(p[4], 5)})
+                callbacks.run('on_val_image_end', pred, predn, path, names, img_rgb[si]) ##早停训练？
 
             
         
