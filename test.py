@@ -133,8 +133,8 @@ def test(data,
             
             out1, dout = model(img_rgb, img_ir, augment=augment) 
             ##输出dout时：
-            out = out1[0]
-            train_out = out1[1]
+            #out = out1[0]
+            #train_out = out1[1]
             ##print(len(out1))  #2
             ##print(out1.size())  #tuple no size
             ##print(out.size())  #torch.Size([16, 14553, 21])
