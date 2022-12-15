@@ -372,7 +372,7 @@ def train_rgb_ir(hyp, opt, device, tb_writer=None):
                 #print(len(pred)) #len=3
                 #print(pred[0].shape) #torch.Size([8, 9, 80, 80, 21])
                 
-                #loss, loss_items = compute_loss(pred, targets.to(device))  # loss scaled by batch_size
+                loss, loss_items = compute_loss(pred, targets.to(device))  # loss scaled by batch_size
                 
 #                 ### 分别计算loss
 #                 pred1 = pred[0]
