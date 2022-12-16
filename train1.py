@@ -796,21 +796,10 @@ def train_rgb_ir(hyp, opt, device, tb_writer=None):
                 #返回dout时，pred为list
                 #print(len(pred)) #len=2
                 
-                #pred = pred[0] #pred
+                pred = pred[0] #pred
                 #print(len(pred)) #len=3
-                #print(pred[0].shape) #torch.Size([8, 3, 80, 80, 21]) #【batchsize，anchors，尺寸，尺寸，4+1+cls】
-                
-                pred = pred[1] #dout
-                #print(len(pred)) #len=3
-                #print(len(pred[0])) #len=3
-                #print(pred[0][0].shape) #torch.Size([8, 3, 80, 80, 21])
-                
-                #for j in range(3): #3个特征图
-                    #for k in range(1,len(pred)): #concat pred1和pred2
-                        #pred[0][j]=torch.cat((pred[0][j],pred[k][j]),1) #第1维test map为0?
-                #pred = pred[0] #将三个detect结果concat
-                #print(len(pred)) #len=3
-                #print(pred[0].shape) #torch.Size([8, 9, 80, 80, 21])
+                #print(pred[0].shape) #torch.Size([8, 3, 80, 80, 21]) #【batchsize，anchors，尺寸，尺寸，4+1+cls
+
                 
                 loss, loss_items = compute_loss(pred, targets.to(device))  # loss scaled by batch_size
                
