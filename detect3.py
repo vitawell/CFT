@@ -286,13 +286,13 @@ def detect(opt):
         if len(out)==2:
             pred1 = out[0]  #
             pred2 = out[1]  #
-            pred3 = out[2]
+            #pred3 = out[2]
 
             # Apply NMS
             #pred = non_max_suppression(pred, opt.conf_thres, opt.iou_thres, classes=opt.classes, agnostic=opt.agnostic_nms)
             pred1 = non_max_suppression(pred1, opt.conf_thres, opt.iou_thres, classes=opt.classes, agnostic=opt.agnostic_nms)
             pred2 = non_max_suppression(pred2, opt.conf_thres, opt.iou_thres, classes=opt.classes, agnostic=opt.agnostic_nms)
-            pred3 = non_max_suppression(pred3, opt.conf_thres, opt.iou_thres, classes=opt.classes, agnostic=opt.agnostic_nms)
+            #pred3 = non_max_suppression(pred3, opt.conf_thres, opt.iou_thres, classes=opt.classes, agnostic=opt.agnostic_nms)
 
             t2 = time_synchronized()
 
@@ -301,11 +301,11 @@ def detect(opt):
             if classify:
                 pred1 = apply_classifier(pred1, modelc, img, im0s)
                 pred2 = apply_classifier(pred2, modelc, img, im0s)
-                pred3 = apply_classifier(pred3, modelc, img, im0s)
+                #pred3 = apply_classifier(pred3, modelc, img, im0s)
 
             # Process detections
             ### 3个detect融合？
-            for si, (im0, model1_dets, model2_dets, model3_dets) in enumerate(zip(img, pred1, pred2, pred3)):
+            for si, (im0, model1_dets, model2_dets) in enumerate(zip(img, pred1, pred2)):
                 #
                 #print(im0.shape)  #用img torch.Size([6, 384, 672])
                 #用img_rgb torch.Size([3, 384, 672])
@@ -314,10 +314,6 @@ def detect(opt):
 
                 width = im0.shape[1]
                 height = im0.shape[0]
-
-
-                if len(model3_dets):
-                    model3_dets[:, :4] = scale_coords(img.shape[2:], model3_dets[:, :4], im0.shape).round()
 
                 if len(model2_dets):  #若model2不为空
                     model2_dets[:, :4] = scale_coords(img.shape[2:], model2_dets[:, :4], im0.shape).round()
@@ -329,30 +325,9 @@ def detect(opt):
                 #detect_success = False
 
                 #iou_thres = 0.55
-                if len(model3_dets)>0 and len(model2_dets)>0 and len(model1_dets)>0:
-                    #print(333)  
-                    ##example_wbf_3_models默认iou_thr=0.55，大于该值的框才融合？改为开头设置的iou_thres？
-                    boxes, scores, labels = example_wbf_3_models(model3_dets.detach().cpu().numpy(), model2_dets.detach().cpu().numpy(), model1_dets.detach().cpu().numpy(), im0, iou_thr=0.55)
-                    boxes[:,0], boxes[:,2] = boxes[:,0] * width, boxes[:,2] * width
-                    boxes[:,1], boxes[:,3] = boxes[:,1] * height, boxes[:,3] * height
-
-                elif len(model3_dets)>0 and len(model2_dets)>0:
-                    boxes, scores, labels = example_wbf_2_models(model3_dets.detach().cpu().numpy(), model2_dets.detach().cpu().numpy(), im0, iou_thr=0.55)
-                    boxes2[:,0], boxes2[:,2] = boxes[:,0] * width, boxes[:,2] * width
-                    boxes2[:,1], boxes2[:,3] = boxes[:,1] * height, boxes[:,3] * height
-
-                elif len(model3_dets)>0 and len(model1_dets)>0:
-                    boxes, scores, labels = example_wbf_2_models(model3_dets.detach().cpu().numpy(), model1_dets.detach().cpu().numpy(), im0, iou_thr=0.55)
-                    boxes[:,0], boxes[:,2] = boxes[:,0] * width, boxes[:,2] * width
-                    boxes[:,1], boxes[:,3] = boxes[:,1] * height, boxes[:,3] * height
-
-                elif len(model2_dets)>0 and len(model1_dets)>0:
+              
+                if len(model2_dets)>0 and len(model1_dets)>0:
                     boxes, scores, labels = example_wbf_2_models(model2_dets.detach().cpu().numpy(), model1_dets.detach().cpu().numpy(), im0, iou_thr=0.55)
-                    boxes[:,0], boxes[:,2] = boxes[:,0] * width, boxes[:,2] * width
-                    boxes[:,1], boxes[:,3] = boxes[:,1] * height, boxes[:,3] * height
-
-                elif len(model3_dets)>0:
-                    boxes, scores, labels = example_wbf_1_model(model3_dets.detach().cpu().numpy(), im0, iou_thr=0.55)
                     boxes[:,0], boxes[:,2] = boxes[:,0] * width, boxes[:,2] * width
                     boxes[:,1], boxes[:,3] = boxes[:,1] * height, boxes[:,3] * height
 
