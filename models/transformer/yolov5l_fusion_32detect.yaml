@@ -54,9 +54,9 @@ backbone:
    [[6,16], 1, Add, [1]],    # 31 two stream fuse
    [[9,19], 1, Add, [1]],    # 32 two stream fuse
    
-   [[14,24], 1, Add, [1]],    # 33 two stream fuse
-   [[16,26], 1, Add, [1]],    # 34 two stream fuse
-   [[19,29], 1, Add, [1]],    # 35 two stream fuse
+   [[4,24], 1, Add, [1]],    # 33 two stream fuse
+   [[6,26], 1, Add, [1]],    # 34 two stream fuse
+   [[9,29], 1, Add, [1]],    # 35 two stream fuse
   ]
 
 # YOLOv5 head
