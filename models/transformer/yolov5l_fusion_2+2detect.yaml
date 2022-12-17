@@ -1,3 +1,5 @@
+##输入为depth+rgb、rgb+jet2，故data/underwater3中输入路径顺序为depth、rgb、jet2
+
 # parameters
 nc: 3  # number of classes #不能注释，但nc数取决于data中yaml
 depth_multiple: 1.00  # model depth multiple
@@ -43,7 +45,7 @@ backbone:
    [[9,19], 1, Add, [1]],    # 22 two stream fuse
    
     #########
-   [-1, 1, Focus, [64, 3]],  # 23-P1/2
+   [-4, 1, Focus, [64, 3]],  # 23-P1/2
    [-1, 1, Conv, [128, 3, 2]],  # 24-P2/4
    [-1, 3, C3, [128]],
    [-1, 1, Conv, [256, 3, 2]],  # 26-P3/8
