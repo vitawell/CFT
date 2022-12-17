@@ -111,44 +111,44 @@ head:
   [
     [-1, 1, Conv, [512, 1, 1]],   # 54
     [-1, 1, nn.Upsample, [None, 2, 'nearest']],   # 55
-    [[-1,16], 1, Concat, [1]],    # 56 cat backbone P4
+    [[-1,52], 1, Concat, [1]],    # 56 cat backbone P4
     [-1, 3, C3, [512, False]],    # 57
 
     [-1, 1, Conv, [256, 1, 1]],   # 58
     [-1, 1, nn.Upsample, [None, 2, 'nearest']],   # 59
-    [[-1,9], 1, Concat, [1]],    # 60 cat backbone P3
+    [[-1,51], 1, Concat, [1]],    # 60 cat backbone P3
     [-1, 3, C3, [256, False]],    # 61 (P3/8-small)
 
     [-1, 1, Conv, [256, 3, 2]],   # 62
-    [[-1,36], 1, Concat, [1]],    # 63 cat head P4
+    [[-1,58], 1, Concat, [1]],    # 63 cat head P4
     [-1, 3, C3, [512, False]],    # 64 (P4/16-medium)
 
     [-1, 1, Conv, [512, 3, 2]],    # 65
-    [[-1,32], 1, Concat, [1]],     # 66 cat head P5
+    [[-1,54], 1, Concat, [1]],     # 66 cat head P5
     [-1, 3, C3, [1024, False]],     # 67 (P5/32-large)
     
     ####
     [31, 1, Conv, [512, 1, 1]],           # 68
     [-1, 1, nn.Upsample, [None, 2, 'nearest']],  # 
-    [[-1,14], 1, Concat, [1]],           # 70 cat backbone P4
+    [[-1,30], 1, Concat, [1]],           # 70 cat backbone P4
     [-1, 3, C3, [512, False]],           # 71
 
     [-1, 1, Conv, [256, 1, 1]],          # 72
     [-1, 1, nn.Upsample, [None, 2, 'nearest']],  # 
-    [[-1,4], 1, Concat, [1]],            # 74 cat backbone P3
+    [[-1,29], 1, Concat, [1]],            # 74 cat backbone P3
     [-1, 3, C3, [256, False]],           # 75 (P3/8-small)
 
     [-1, 1, Conv, [256, 3, 2]],          # 76
-    [[-1,50], 1, Concat, [1]],           # 77 cat head P4
+    [[-1,72], 1, Concat, [1]],           # 77 cat head P4
     [-1, 3, C3, [512, False]],           # 78 (P4/16-medium)
 
     [-1, 1, Conv, [512, 3, 2]],          # 79
-    [[-1,46], 1, Concat, [1]],           # 80 cat head P5
+    [[-1,68], 1, Concat, [1]],           # 80 cat head P5
     [-1, 3, C3, [1024, False]],          # 81 (P5/32-large)
    
    
     ####
-    [[39, 42, 45], 1, Detect, [nc, anchors]],    # Detect(P3, P4, P5) 82 depth
-    [[53, 56, 59], 1, Detect, [nc, anchors]],    # Detect(P3, P4, P5) 83 rgb
+    [[61, 64, 67], 1, Detect, [nc, anchors]],    # Detect(P3, P4, P5) 82 rgb+3
+    [[75, 78, 81], 1, Detect, [nc, anchors]],    # Detect(P3, P4, P5) 83 rgb+2
    
   ]
