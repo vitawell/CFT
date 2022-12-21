@@ -31,6 +31,9 @@
 ##
 修改使用2个还是3个detect时，需要修改train3.py和test3.py中的loss和wbf融合。
 
+##
+使用EIoU，utils/general.py中增加EIoU，loss.py中computeloss改为EIoU。
+
 ## CFT
 CFT修改了模型yolo.py，改为models/yolo_test.py，加载数据时若输入为-4则表示输入为第二个模态。
 
