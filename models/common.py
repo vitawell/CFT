@@ -275,7 +275,12 @@ class Add(nn.Module):
         self.arg = arg
 
     def forward(self, x):
-        return torch.add(x[0], x[1])
+        #return torch.add(x[0], x[1])
+        if len(x)==2:
+            return torch.add(x[0], x[1])
+        elif len(x)==3:
+            y = torch.add(x[0], x[1])
+            return torch.add(y, x[2])
 
 
 class Add2(nn.Module):
