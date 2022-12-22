@@ -597,9 +597,12 @@ def parse_model(d, ch):  # model_dict, input_channels(3)
             args = [ch[f]]
         elif m is Concat:
             c2 = sum([ch[x] for x in f])
-        elif m is ConcatD: # 拼接detect？
-            c2 = ch[f[0]]
-            args = [c2]
+#         elif m is ConcatD: # 拼接detect？
+#             c2 = ch[f[0]]
+#             args = [c2]
+        # 添加bifpn_add结构
+        elif m in [BiFPN_Add2, BiFPN_Add3]:
+            c2 = max([ch[x] for x in f])
         elif m is Add:
             # print("ch[f]", f, ch[f[0]])
             c2 = ch[f[0]]
