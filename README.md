@@ -33,6 +33,8 @@
 
 ##
 使用EIoU，utils/general.py中增加EIoU，loss.py中computeloss改为EIoU。
+##
+使用BiFPN，参考https://yolov5.blog.csdn.net/article/details/125148552
 
 ## CFT
 CFT修改了模型yolo.py，改为models/yolo_test.py，加载数据时若输入为-4则表示输入为第二个模态。
