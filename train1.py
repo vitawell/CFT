@@ -24,6 +24,7 @@ from tqdm import tqdm
 import test  # import test.py to get mAP after each epoch
 #import WBFtest
 
+from models.common import BiFPN_Add3, BiFPN_Add2
 from models.experimental import attempt_load
 from models.yolo import Model
 from models.yolo_test import Model
@@ -586,6 +587,11 @@ def train_rgb_ir(hyp, opt, device, tb_writer=None):
             pg0.append(v.weight)  # no decay
         elif hasattr(v, 'weight') and isinstance(v.weight, nn.Parameter):
             pg1.append(v.weight)  # apply decay
+        # BiFPN_Concat
+        elif isinstance(v, BiFPN_Add2) and hasattr(v, 'w') and isinstance(v.w, nn.Parameter):
+            pg1.append(v.w)
+        elif isinstance(v, BiFPN_Add3) and hasattr(v, 'w') and isinstance(v.w, nn.Parameter):
+            pg1.append(v.w)
 
     if opt.adam:
         optimizer = optim.Adam(pg0, lr=hyp['lr0'], betas=(hyp['momentum'], 0.999))  # adjust beta1 to momentum
