@@ -49,7 +49,7 @@ class BiFPN_Add2(nn.Module):
     def forward(self, x):
         w = self.w
         weight = w / (torch.sum(w, dim=0) + self.epsilon)
-        return self.conv(self.silu(weight[0] * x[0] + weight[1] * x[1]))
+        return self.conv(self.silu(weight[0] * x[0] + weight[1] * x[1]))  #带权重卷积？
 
 
 # 三个特征图add操作
