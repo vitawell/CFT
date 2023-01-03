@@ -1,0 +1,106 @@
+# parameters
+nc: 3  # number of classes #不能注释，但nc数取决于data中yaml
+depth_multiple: 1.00  # model depth multiple
+width_multiple: 1.00  # layer channel multiple
+
+# anchors
+anchors:
+  - [10,13, 16,30, 33,23]  # P3/8
+  - [30,61, 62,45, 59,119]  # P4/16
+  - [116,90, 156,198, 373,326]  # P5/32
+
+# YOLOv5 backbone
+backbone:
+  # [from, number, module, args]
+  # Two Stream
+  [
+   [-1, 1, Focus, [64, 3]],  # 0-P1/2
+   [-1, 1, Conv, [128, 3, 2]],  # 1-P2/4
+   [-1, 3, C3, [128]],
+   [-1, 1, Conv, [256, 3, 2]],  # 3-P3/8
+   [-1, 9, C3, [256]],
+   [-1, 1, Conv, [512, 3, 2]],  # 5-P4/16
+   [-1, 9, C3, [512]],
+   [-1, 1, Conv, [1024, 3, 2]],  # 7-P5/32
+   [-1, 1, SPP, [1024, [5, 9, 13]]],
+   [-1, 3, C3, [1024, False]],  # 9
+
+    #########
+   [-4, 1, Focus, [64, 3]],  # 10-P1/2
+   [-1, 1, Conv, [128, 3, 2]],  # 11-P2/4
+   [-1, 3, C3, [128]],
+   [-1, 1, Conv, [256, 3, 2]],  # 13-P3/8
+   [-1, 9, C3, [256]],
+   [-1, 1, Conv, [512, 3, 2]],  # 15-P4/16
+   [-1, 9, C3, [512]],
+   [-1, 1, Conv, [1024, 3, 2]],  # 17-P5/32
+   [-1, 1, SPP, [1024, [5, 9, 13]]],
+   [-1, 3, C3, [1024, False]],  # 19
+   
+   #########
+   [-8, 1, Focus, [64, 3]],  # 20
+   [-1, 1, Conv, [128, 3, 2]],  # 21
+   [-1, 3, C3, [128]],
+   [-1, 1, Conv, [256, 3, 2]],  # 23
+   [-1, 9, C3, [256]],
+   [-1, 1, Conv, [512, 3, 2]],  # 25
+   [-1, 9, C3, [512]],
+   [-1, 1, Conv, [1024, 3, 2]],  # 27
+   [-1, 1, SPP, [1024, [5, 9, 13]]],
+   [-1, 3, C3, [1024, False]],  # 29
+   
+   ######### Add Block #############
+   [[4,14], 1, BiFPN_Add2, [256,256]],    # 30 two stream fuse
+   [[6,16], 1, BiFPN_Add2, [512,512]],    # 31 two stream fuse
+   [[9,19], 1, BiFPN_Add2, [1024,1024]],    # 32 two stream fuse
+   
+   [[4,24], 1, BiFPN_Add2, [256,256]],    # 33 two stream fuse
+   [[6,26], 1, BiFPN_Add2, [512,512]],    # 34 two stream fuse
+   [[9,29], 1, BiFPN_Add2, [1024,1024]],    # 35 two stream fuse
+  ]
+
+# YOLOv5 head
+head:
+  [[-1, 1, Conv, [512, 1, 1]],          # 36
+   [-1, 1, nn.Upsample, [None, 2, 'nearest']],  # 37
+   [[-1,34], 1, BiFPN_Add2, [512,512]],           # 38 cat backbone P4
+   [-1, 3, C3, [512, False]],           # 39
+
+   [-1, 1, Conv, [256, 1, 1]],          # 40
+   [-1, 1, nn.Upsample, [None, 2, 'nearest']],  # 41
+   [[-1,33，4], 1, BiFPN_Add3, [256,256]],           # 42 cat backbone P3
+   [-1, 3, C3, [256, False]],           # 43 (P3/8-small)
+
+   [-1, 1, Conv, [512, 3, 2]],          # 44
+   [[-1,39，6], 1, BiFPN_Add3, [512,512]],           # 45 cat head P4
+   [-1, 3, C3, [512, False]],           # 46 (P4/16-medium)
+
+   [-1, 1, Conv, [512, 3, 2]],          # 47
+   [[-1,36], 1, BiFPN_Add2, [512,512]],           # 48 cat head P5
+   [-1, 3, C3, [1024, False]],          # 49 (P5/32-large)
+   
+   ####
+   [32, 1, Conv, [512, 1, 1]],           # 50
+   [-1, 1, nn.Upsample, [None, 2, 'nearest']],  # 
+   [[-1,31], 1, BiFPN_Add2, [512,512]],           # 52 cat backbone P4
+   [-1, 3, C3, [512, False]],           # 53
+
+   [-1, 1, Conv, [256, 1, 1]],          # 54
+   [-1, 1, nn.Upsample, [None, 2, 'nearest']],  # 
+   [[-1,30，14], 1, BiFPN_Add3, [256,256]],           # 56 cat backbone P3
+   [-1, 3, C3, [256, False]],           # 57 (P3/8-small)
+
+   [-1, 1, Conv, [512, 3, 2]],          # 58
+   [[-1,53，16], 1, BiFPN_Add3, [512,512]],           # 59 cat head P4
+   [-1, 3, C3, [512, False]],           # 60 (P4/16-medium)
+
+   [-1, 1, Conv, [512, 3, 2]],          # 61
+   [[-1,50], 1, BiFPN_Add2, [512,512]],           # 62 cat head P5
+   [-1, 3, C3, [1024, False]],          # 63 (P5/32-large)
+   
+   
+   ####
+   [[43, 46, 49], 1, Detect, [nc, anchors]],    # Detect(P3, P4, P5) 64 rgb+depth
+   [[57, 60, 63], 1, Detect, [nc, anchors]],    # Detect(P3, P4, P5) 65 rgb+jet2
+   
+  ]
