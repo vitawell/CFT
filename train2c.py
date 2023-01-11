@@ -22,7 +22,7 @@ from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
 #import test  # import test.py to get mAP after each epoch
-import test2c
+import test
 
 from models.common import BiFPN_Add3, BiFPN_Add2  #导入BiFPN_Add3, BiFPN_Add2
 from models.experimental import attempt_load
@@ -427,7 +427,7 @@ def train_rgb_ir(hyp, opt, device, tb_writer=None):
             if not opt.notest or final_epoch:  # Calculate mAP
                 wandb_logger.current_epoch = epoch + 1
                 
-                results, maps, times = test2c.test(data_dict,
+                results, maps, times = test.test(data_dict,
                                                  batch_size=batch_size * 2,
                                                  imgsz=imgsz_test,
                                                  model=ema.ema,
