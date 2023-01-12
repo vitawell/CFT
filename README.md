@@ -29,7 +29,7 @@
 修改utils/datasets.py中添加加载3个模态数据。增加train3.py中加载数据，增加test3.py，增加models/yolo_test3.py。检测时使用detect3.py。
 
 ##
-修改使用2个还是3个detect时，需要修改train3.py和test3.py中的loss和wbf融合。
+输出不为1个detect，是2个或3个detect时，test.py中的detect结果会concat叠加。
 
 ##
 使用EIoU，utils/general.py中增加EIoU，loss.py中computeloss改为EIoU。
