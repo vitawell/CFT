@@ -101,6 +101,15 @@ head:
    
    ####
    [[49, 51, 53], 1, Detect, [nc, anchors]],    # Detect(P3, P4, P5) 48 depth
+   
+   ######只concat
+   [[27,41], 1, Concat, [1]],           # 48 (256+256)
+
+   [[30,44], 1, Concat, [1]],           # 49 (512+512）
+   
+   [[33,47], 1, Concat, [1]],           # 50 (1024+1024)
+
+   [[48, 49, 50], 1, Detect, [nc, anchors]],    # Detect(P3, P4, P5) 48 depth
 
    
   ]
