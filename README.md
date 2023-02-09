@@ -36,6 +36,10 @@
 ##
 使用BiFPN，common、yolo_test、train、yaml文件增加模块。参考https://yolov5.blog.csdn.net/article/details/125148552
 
+##
+win下，yaml文件加载出错需要删掉注释中的中文
+
+
 ## CFT
 CFT修改了模型yolo.py，改为models/yolo_test.py，加载数据时若输入为-4则表示输入为第二个模态。
 
